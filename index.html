@@ -12,6 +12,7 @@
             color: #fff;
             min-height: 100vh;
             padding-bottom: 80px;
+            -webkit-font-smoothing: antialiased;
         }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: #111; }
@@ -195,7 +196,7 @@
         }
         .watch-btn:active { opacity: 0.7; }
 
-        /* ===== PLAYER (MOBİL UYUMLU) ===== */
+        /* ===== PLAYER (MOBİL VIDEO ETİKETİ) ===== */
         .player-container {
             display: none;
             position: fixed;
@@ -271,16 +272,32 @@
             background: #000;
             position: relative;
         }
-        .player-body iframe {
+        /* ===== MOBİL UYUMLU VIDEO ===== */
+        .player-body video {
             width: 100%;
             height: 100%;
-            border: none;
+            max-height: 100vh;
             background: #000;
+            object-fit: contain;
+        }
+        .player-body .video-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .player-body .video-wrapper video {
+            width: 100%;
+            height: 100%;
+            max-height: 100vh;
         }
         .player-loading {
             position: absolute;
             color: #555;
             font-size: 14px;
+            z-index: 5;
         }
         .player-error {
             position: absolute;
@@ -289,6 +306,17 @@
             text-align: center;
             padding: 20px;
             display: none;
+            z-index: 5;
+        }
+        .player-source-info {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.2);
+            font-size: 10px;
+            z-index: 5;
+            pointer-events: none;
         }
 
         @media (min-width: 600px) {
@@ -352,21 +380,27 @@
         <button class="watch-btn" id="watchBtn">▶ İZLE</button>
     </div>
 
-    <!-- PLAYER -->
+    <!-- PLAYER (MOBİL UYUMLU) -->
     <div class="player-container" id="playerContainer">
         <div class="player-header">
             <span class="title" id="playerTitle">Yükleniyor...</span>
             <button class="close-btn" id="closePlayer">✕</button>
         </div>
         <div class="player-selector" id="playerSelector">
-            <button class="active" data-player="2embed">2Embed</button>
+            <button class="active" data-player="vidsrc">VidSrc</button>
+            <button data-player="2embed">2Embed</button>
             <button data-player="multiembed">MultiEmbed</button>
-            <button data-player="vidsrc">VidSrc</button>
         </div>
         <div class="player-body">
             <div class="player-loading" id="playerLoading">⏳ Yükleniyor...</div>
             <div class="player-error" id="playerError">❌ Bu player çalışmıyor, başka birini dene</div>
-            <iframe id="playerIframe" allowfullscreen></iframe>
+            <div class="video-wrapper" id="videoWrapper">
+                <video id="videoPlayer" controls playsinline autoplay>
+                    <source id="videoSource" src="" type="application/x-mpegURL">
+                    <p>Tarayıcınız video oynatmayı desteklemiyor.</p>
+                </video>
+            </div>
+            <div class="player-source-info" id="sourceInfo"></div>
         </div>
     </div>
 
@@ -376,8 +410,12 @@
         const TMDB_IMAGE_URL = 'https://image.tmdb.org/t/p/w500';
         const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
-        // ===== MOBİL UYUMLU PLAYER =====
+        // ===== PLAYER (MOBİL UYUMLU) =====
         const PLAYERS = {
+            'vidsrc': {
+                name: 'VidSrc',
+                url: (type, id) => `https://vidsrc.in/embed/${type}/${id}`
+            },
             '2embed': {
                 name: '2Embed',
                 url: (type, id) => `https://www.2embed.to/embed/tmdb/${type}/${id}`
@@ -385,10 +423,6 @@
             'multiembed': {
                 name: 'MultiEmbed',
                 url: (type, id) => `https://multiembed.mov/directstream.php?video_id=${id}`
-            },
-            'vidsrc': {
-                name: 'VidSrc',
-                url: (type, id) => `https://vidsrc.in/embed/${type}/${id}`
             }
         };
 
@@ -396,8 +430,7 @@
         let currentMovieId = null;
         let currentType = 'movie';
         let currentTitle = '';
-        let currentPlayer = '2embed';
-        let playerAttempts = {};
+        let currentPlayer = 'vidsrc';
 
         // ===== DOM =====
         const searchInput = document.getElementById('searchInput');
@@ -413,12 +446,15 @@
         const watchBtn = document.getElementById('watchBtn');
         const backBtn = document.getElementById('backBtn');
         const playerContainer = document.getElementById('playerContainer');
-        const playerIframe = document.getElementById('playerIframe');
         const playerTitle = document.getElementById('playerTitle');
         const closePlayer = document.getElementById('closePlayer');
         const playerLoading = document.getElementById('playerLoading');
         const playerError = document.getElementById('playerError');
         const playerSelector = document.getElementById('playerSelector');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const videoSource = document.getElementById('videoSource');
+        const videoWrapper = document.getElementById('videoWrapper');
+        const sourceInfo = document.getElementById('sourceInfo');
 
         // ===== API =====
         async function tmdbRequest(endpoint, params = {}) {
@@ -546,7 +582,7 @@
             window.scrollTo(0, 0);
         }
 
-        // ===== PLAYER =====
+        // ===== PLAYER (MOBİL UYUMLU - VIDEO ETİKETİ) =====
         function getPlayerUrl(type, id, playerKey) {
             const player = PLAYERS[playerKey];
             if (!player) return null;
@@ -560,44 +596,110 @@
             playerTitle.textContent = `▶ ${title}`;
             playerContainer.classList.add('active');
             document.body.style.overflow = 'hidden';
-            playerAttempts = {};
             loadPlayer(currentPlayer);
         }
 
         function loadPlayer(playerKey) {
             const url = getPlayerUrl(currentType, currentMovieId, playerKey);
-            if (!url) return;
+            if (!url) {
+                showPlayerError('❌ Player URL alınamadı!');
+                return;
+            }
 
             currentPlayer = playerKey;
             document.querySelectorAll('.player-selector button').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.player === playerKey);
             });
 
+            // Video'yu temizle
+            videoPlayer.pause();
+            videoPlayer.removeAttribute('src');
+            videoPlayer.load();
+            
             playerLoading.style.display = 'block';
             playerError.style.display = 'none';
-            playerIframe.src = '';
+            sourceInfo.textContent = `📡 ${PLAYERS[playerKey].name}`;
 
-            setTimeout(() => {
-                playerIframe.src = url;
-                playerLoading.style.display = 'none';
-
-                // Player yüklenmezse hata göster
-                setTimeout(() => {
-                    try {
-                        if (!playerIframe.contentDocument || !playerIframe.contentDocument.body.innerHTML) {
-                            playerError.style.display = 'block';
+            // Video'ya m3u8 linkini ata
+            try {
+                // HLS.js ile oynatmayı dene (mobilde daha iyi çalışır)
+                if (Hls.isSupported()) {
+                    const hls = new Hls({
+                        enableWorker: true,
+                        lowLatencyMode: true,
+                        maxBufferLength: 10,
+                        maxMaxBufferLength: 20,
+                    });
+                    hls.loadSource(url);
+                    hls.attachMedia(videoPlayer);
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        playerLoading.style.display = 'none';
+                        videoPlayer.play().catch(() => {});
+                    });
+                    hls.on(Hls.Events.ERROR, (event, data) => {
+                        if (data.fatal) {
+                            showPlayerError('❌ Video yüklenemedi, başka bir player dene');
                         }
-                    } catch (e) {
-                        playerError.style.display = 'block';
-                    }
-                }, 5000);
-            }, 500);
+                    });
+                    // Hls'i videoPlayer'a ata (temizlik için)
+                    videoPlayer._hls = hls;
+                } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+                    // Safari / iOS için native HLS
+                    videoPlayer.src = url;
+                    videoPlayer.addEventListener('loadedmetadata', () => {
+                        playerLoading.style.display = 'none';
+                        videoPlayer.play().catch(() => {});
+                    });
+                    videoPlayer.addEventListener('error', () => {
+                        showPlayerError('❌ Video yüklenemedi, başka bir player dene');
+                    });
+                } else {
+                    showPlayerError('❌ Tarayıcınız video oynatmayı desteklemiyor');
+                }
+            } catch (e) {
+                showPlayerError('❌ Oynatıcı hatası: ' + e.message);
+            }
+
+            // Timeout ile yüklenme kontrolü
+            setTimeout(() => {
+                if (playerLoading.style.display !== 'none') {
+                    showPlayerError('⏳ Yüklenme çok uzun sürüyor, başka player dene');
+                }
+            }, 10000);
+        }
+
+        function showPlayerError(msg) {
+            playerLoading.style.display = 'none';
+            playerError.textContent = msg;
+            playerError.style.display = 'block';
         }
 
         function closePlayerFunc() {
+            // HLS'i temizle
+            if (videoPlayer._hls) {
+                videoPlayer._hls.destroy();
+                videoPlayer._hls = null;
+            }
+            videoPlayer.pause();
+            videoPlayer.removeAttribute('src');
+            videoPlayer.load();
             playerContainer.classList.remove('active');
-            playerIframe.src = '';
             document.body.style.overflow = '';
+        }
+
+        // ===== HLS.js yükle (mobilde m3u8 oynatmak için) =====
+        function loadHLS() {
+            return new Promise((resolve) => {
+                if (window.Hls) {
+                    resolve();
+                    return;
+                }
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/hls.js@0.14.17/dist/hls.min.js';
+                script.onload = () => resolve();
+                script.onerror = () => resolve(); // HLS yüklenmezse native dener
+                document.head.appendChild(script);
+            });
         }
 
         // ===== EVENTS =====
@@ -660,6 +762,9 @@
 
         // ===== INIT =====
         async function init() {
+            // HLS.js'i yükle (mobilde m3u8 oynatmak için)
+            await loadHLS();
+            
             try {
                 const [movies, tv, anime] = await Promise.all([
                     getPopularMovies(),
@@ -672,9 +777,9 @@
             } catch (e) {
                 console.log('Yükleme hatası:', e);
             }
+            console.log('🎬 FilmBot yüklendi! HLS.js:', !!window.Hls);
         }
         init();
-        console.log('🎬 FilmBot yüklendi!');
     </script>
 </body>
 </html>
