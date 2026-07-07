@@ -1,346 +1,337 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Canlı Yayın</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: #0a0a0a;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            color: #fff;
-        }
-        #container {
-            width: 100%;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            background: #000;
-            position: relative;
-        }
-        #player-container {
-            width: 100%;
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #000;
-            position: relative;
-        }
-        video {
-            width: 100%;
-            max-height: 100vh;
-            background: #000;
-        }
-        #status {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: #888;
-            font-size: 13px;
-            background: rgba(0,0,0,0.85);
-            padding: 8px 20px;
-            border-radius: 20px;
-            border: 1px solid #222;
-            text-align: center;
-            z-index: 10;
-            backdrop-filter: blur(4px);
-            white-space: nowrap;
-        }
-        #status.loading { color: #ffa500; }
-        #status.playing { color: #00ff88; }
-        #status.error { color: #ff4444; }
-        #status.reconnecting { color: #ffaa00; animation: pulse 1s infinite; }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        .top-bar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            padding: 12px 16px;
-            background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
-            z-index: 10;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            pointer-events: none;
-        }
-        .top-bar span {
-            color: #aaa;
-            font-size: 11px;
-            letter-spacing: 0.5px;
-            background: rgba(0,0,0,0.5);
-            padding: 4px 12px;
-            border-radius: 12px;
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        .reconnect-btn {
-            position: absolute;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: #fff;
-            padding: 10px 24px;
-            border-radius: 25px;
-            font-size: 14px;
-            cursor: pointer;
-            z-index: 10;
-            display: none;
-            backdrop-filter: blur(8px);
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-        .reconnect-btn:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        .reconnect-btn.show {
-            display: block;
-        }
-    </style>
-</head>
-<body>
-    <div id="container">
-        <div id="player-container">
-            <video id="player" playsinline></video>
-            
-            <div class="top-bar">
-                <span>📺 CANLI YAYIN</span>
-                <span>⚡ HD</span>
-            </div>
-            
-            <div id="status">⏳ Bağlanıyor...</div>
-            <button class="reconnect-btn" id="reconnectBtn">🔄 Yeniden Bağlan</button>
-        </div>
-    </div>
+import os
+import requests
+import json
+import random
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@0.14.17/dist/hls.min.js"></script>
-    <script>
-        (function() {
-            const video = document.getElementById('player');
-            const statusEl = document.getElementById('status');
-            const reconnectBtn = document.getElementById('reconnectBtn');
+# ============= KONFIGÜRASYON =============
+TOKEN = "7873180369:AAHtLHE0_Hju1BRd35-VAj5jhxo9Vdeh5x8"
+
+# ============= TMDB API =============
+TMDB_API_KEY = "af02b5703f3d2d7949f9b1a5fdb4d2a7"
+TMDB_BASE_URL = "https://api.themoviedb.org/3"
+TMDB_IMAGE_URL = "https://image.tmdb.org/t/p/w500"
+
+# ============= API FONKSİYONLARI =============
+def tmdb_istegi(endpoint, params=None):
+    if params is None:
+        params = {}
+    params["api_key"] = TMDB_API_KEY
+    params["language"] = "tr-TR"
+    
+    try:
+        response = requests.get(f"{TMDB_BASE_URL}/{endpoint}", params=params, timeout=10)
+        if response.status_code == 200:
+            return response.json()
+        return None
+    except:
+        return None
+
+def film_ara(query):
+    return tmdb_istegi("search/movie", {"query": query})
+
+def dizi_ara(query):
+    return tmdb_istegi("search/tv", {"query": query})
+
+def populer_filmler():
+    return tmdb_istegi("movie/popular")
+
+def populer_diziler():
+    return tmdb_istegi("tv/popular")
+
+def film_detay(film_id):
+    return tmdb_istegi(f"movie/{film_id}")
+
+def dizi_detay(dizi_id):
+    return tmdb_istegi(f"tv/{dizi_id}")
+
+# ============= TELEGRAM BOT =============
+class FilmBot:
+    async def start(self, update: Update, context):
+        await update.message.reply_text(
+            "🎬 HOŞ GELDIN!\n\n"
+            "📽️ /film <isim> - Film ara\n"
+            "📺 /dizi <isim> - Dizi ara\n"
+            "🔥 /populer - Populer filmler\n"
+            "📈 /populer_dizi - Populer diziler\n"
+            "🎲 /rastgele - Rastgele film oner\n"
+            "ℹ️ /yardim - Yardim\n\n"
+            "Ornek: /film Inception"
+        )
+
+    async def yardim(self, update: Update, context):
+        await update.message.reply_text(
+            "📖 KOMUTLAR:\n\n"
+            "/film <isim> - Film ara\n"
+            "/dizi <isim> - Dizi ara\n"
+            "/populer - Populer filmler\n"
+            "/populer_dizi - Populer diziler\n"
+            "/rastgele - Rastgele film oner\n"
+            "/yardim - Bu menü\n\n"
+            "Ornekler:\n"
+            "/film Inception\n"
+            "/dizi Breaking Bad"
+        )
+
+    async def rastgele_film(self, update: Update, context):
+        await update.message.reply_text("🎲 Rastgele film seciliyor...")
+        
+        data = populer_filmler()
+        if not data or not data.get("results"):
+            await update.message.reply_text("❌ Film bulunamadi.")
+            return
+        
+        film = random.choice(data["results"])
+        await self.film_goster(update, film)
+
+    async def film_ara_komut(self, update: Update, context):
+        if not context.args:
+            await update.message.reply_text("❌ Lutfen bir film adi gir!\nOrnek: /film Inception")
+            return
+        
+        query = " ".join(context.args)
+        await update.message.reply_text(f"🔍 '{query}' araniyor...")
+        
+        data = film_ara(query)
+        if not data or not data.get("results"):
+            await update.message.reply_text(f"❌ '{query}' bulunamadi.")
+            return
+        
+        results = data["results"][:5]
+        if len(results) == 1:
+            await self.film_goster(update, results[0])
+        else:
+            keyboard = []
+            for film in results:
+                title = film.get("title", "Bilinmeyen")[:30]
+                year = film.get("release_date", "")[:4]
+                keyboard.append([
+                    InlineKeyboardButton(f"🎬 {title} ({year})", callback_data=f"film_{film['id']}")
+                ])
             
-            // ===== YAYIN LİNKİ =====
-            const YAYIN_URL = 'https://tzy.zirvedesin236.cfd/taraftarium/mono.m3u8';
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(
+                f"🔍 '{query}' icin {len(results)} sonuc bulundu:\n\n"
+                "Bir film sec:",
+                reply_markup=reply_markup
+            )
+
+    async def dizi_ara_komut(self, update: Update, context):
+        if not context.args:
+            await update.message.reply_text("❌ Lutfen bir dizi adi gir!\nOrnek: /dizi Breaking Bad")
+            return
+        
+        query = " ".join(context.args)
+        await update.message.reply_text(f"🔍 '{query}' araniyor...")
+        
+        data = dizi_ara(query)
+        if not data or not data.get("results"):
+            await update.message.reply_text(f"❌ '{query}' bulunamadi.")
+            return
+        
+        results = data["results"][:5]
+        if len(results) == 1:
+            await self.dizi_goster(update, results[0])
+        else:
+            keyboard = []
+            for dizi in results:
+                name = dizi.get("name", "Bilinmeyen")[:30]
+                year = dizi.get("first_air_date", "")[:4]
+                keyboard.append([
+                    InlineKeyboardButton(f"📺 {name} ({year})", callback_data=f"dizi_{dizi['id']}")
+                ])
             
-            let hls = null;
-            let retryCount = 0;
-            const MAX_RETRIES = 10;
-            let isDestroyed = false;
-            let reconnectTimer = null;
-            let isReconnecting = false;
-            
-            function setStatus(text, type = 'loading') {
-                statusEl.textContent = text;
-                statusEl.className = type;
-            }
-            
-            function showReconnectButton(show = true) {
-                if (show) {
-                    reconnectBtn.classList.add('show');
-                } else {
-                    reconnectBtn.classList.remove('show');
-                }
-            }
-            
-            function destroyPlayer() {
-                isDestroyed = true;
-                if (reconnectTimer) {
-                    clearTimeout(reconnectTimer);
-                    reconnectTimer = null;
-                }
-                if (hls) {
-                    try {
-                        hls.destroy();
-                    } catch(e) {}
-                    hls = null;
-                }
-                try {
-                    video.pause();
-                    video.removeAttribute('src');
-                    video.load();
-                } catch(e) {}
-                isReconnecting = false;
-            }
-            
-            function attemptReconnect() {
-                if (isDestroyed) return;
-                if (isReconnecting) return;
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(
+                f"🔍 '{query}' icin {len(results)} sonuc bulundu:\n\n"
+                "Bir dizi sec:",
+                reply_markup=reply_markup
+            )
+
+    async def populer_filmler_komut(self, update: Update, context):
+        await update.message.reply_text("🔥 Populer filmler getiriliyor...")
+        
+        data = populer_filmler()
+        if not data or not data.get("results"):
+            await update.message.reply_text("❌ Populer filmler bulunamadi.")
+            return
+        
+        keyboard = []
+        for film in data["results"][:10]:
+            title = film.get("title", "Bilinmeyen")[:25]
+            year = film.get("release_date", "")[:4]
+            rating = film.get("vote_average", 0)
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"🎬 {title} ({year}) ⭐{rating}", 
+                    callback_data=f"film_{film['id']}"
+                )
+            ])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            "🔥 En Populer Filmler:\n\n"
+            "Bir film sec, detaylarini gosterelim.",
+            reply_markup=reply_markup
+        )
+
+    async def populer_diziler_komut(self, update: Update, context):
+        await update.message.reply_text("📈 Populer diziler getiriliyor...")
+        
+        data = populer_diziler()
+        if not data or not data.get("results"):
+            await update.message.reply_text("❌ Populer diziler bulunamadi.")
+            return
+        
+        keyboard = []
+        for dizi in data["results"][:10]:
+            name = dizi.get("name", "Bilinmeyen")[:25]
+            year = dizi.get("first_air_date", "")[:4]
+            rating = dizi.get("vote_average", 0)
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"📺 {name} ({year}) ⭐{rating}", 
+                    callback_data=f"dizi_{dizi['id']}"
+                )
+            ])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            "📈 En Populer Diziler:\n\n"
+            "Bir dizi sec, detaylarini gosterelim.",
+            reply_markup=reply_markup
+        )
+
+    async def film_goster(self, update, film):
+        film_id = film["id"]
+        detay = film_detay(film_id)
+        
+        if not detay:
+            await update.message.reply_text("❌ Film detaylari alinamadi.")
+            return
+        
+        title = detay.get("title", "Bilinmeyen")
+        year = detay.get("release_date", "")[:4]
+        rating = detay.get("vote_average", 0)
+        vote_count = detay.get("vote_count", 0)
+        overview = detay.get("overview", "Aciklama yok.")
+        poster = detay.get("poster_path", "")
+        genres = ", ".join([g["name"] for g in detay.get("genres", [])])
+        runtime = detay.get("runtime", 0)
+        
+        mesaj = (
+            f"🎬 {title} ({year})\n"
+            f"Puan: {rating}/10 ({vote_count} oy)\n"
+            f"Tur: {genres}\n"
+            f"Sure: {runtime} dk\n\n"
+            f"{overview[:500]}..."
+        )
+        
+        if poster:
+            try:
+                poster_url = f"{TMDB_IMAGE_URL}{poster}"
+                keyboard = [
+                    [InlineKeyboardButton("🔍 IMDB'de Ara", url=f"https://www.imdb.com/find?q={title}")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                isReconnecting = true;
-                retryCount++;
-                setStatus(`🔄 Yeniden bağlanılıyor (${retryCount}/${MAX_RETRIES})...`, 'reconnecting');
-                showReconnectButton(false);
+                await update.message.reply_photo(
+                    photo=poster_url,
+                    caption=mesaj,
+                    reply_markup=reply_markup
+                )
+            except:
+                await update.message.reply_text(mesaj)
+        else:
+            await update.message.reply_text(mesaj)
+
+    async def dizi_goster(self, update, dizi):
+        dizi_id = dizi["id"]
+        detay = dizi_detay(dizi_id)
+        
+        if not detay:
+            await update.message.reply_text("❌ Dizi detaylari alinamadi.")
+            return
+        
+        name = detay.get("name", "Bilinmeyen")
+        year = detay.get("first_air_date", "")[:4]
+        rating = detay.get("vote_average", 0)
+        vote_count = detay.get("vote_count", 0)
+        overview = detay.get("overview", "Aciklama yok.")
+        poster = detay.get("poster_path", "")
+        genres = ", ".join([g["name"] for g in detay.get("genres", [])])
+        seasons = detay.get("number_of_seasons", 0)
+        episodes = detay.get("number_of_episodes", 0)
+        status = detay.get("status", "Bilinmiyor")
+        
+        mesaj = (
+            f"📺 {name} ({year})\n"
+            f"Puan: {rating}/10 ({vote_count} oy)\n"
+            f"Tur: {genres}\n"
+            f"Sezon: {seasons} | Bolum: {episodes}\n"
+            f"Durum: {status}\n\n"
+            f"{overview[:500]}..."
+        )
+        
+        if poster:
+            try:
+                poster_url = f"{TMDB_IMAGE_URL}{poster}"
+                keyboard = [
+                    [InlineKeyboardButton("🔍 IMDB'de Ara", url=f"https://www.imdb.com/find?q={name}")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                destroyPlayer();
-                
-                setTimeout(() => {
-                    isDestroyed = false;
-                    isReconnecting = false;
-                    if (retryCount <= MAX_RETRIES) {
-                        initPlayer();
-                    } else {
-                        setStatus('❌ Bağlantı sağlanamadı', 'error');
-                        showReconnectButton(true);
-                    }
-                }, 2000 * Math.min(retryCount, 5));
-            }
-            
-            function initPlayer() {
-                if (isDestroyed) return;
-                
-                setStatus('⏳ Yayın bağlanıyor...', 'loading');
-                showReconnectButton(false);
-                
-                if (!Hls.isSupported()) {
-                    // Safari native HLS
-                    if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                        video.src = YAYIN_URL;
-                        video.addEventListener('loadedmetadata', function onLoad() {
-                            setStatus('▶️ Canlı Yayın', 'playing');
-                            video.play().catch(() => {});
-                            retryCount = 0;
-                            showReconnectButton(false);
-                            video.removeEventListener('loadedmetadata', onLoad);
-                        });
-                        video.addEventListener('error', function onError() {
-                            setStatus('⚠️ Yükleme hatası', 'error');
-                            showReconnectButton(true);
-                            video.removeEventListener('error', onError);
-                        });
-                        return;
-                    } else {
-                        setStatus('❌ Tarayıcı desteklemiyor', 'error');
-                        showReconnectButton(true);
-                        return;
-                    }
-                }
-                
-                // HLS.js ile
-                try {
-                    hls = new Hls({
-                        enableWorker: false,
-                        lowLatencyMode: true,
-                        maxBufferLength: 30,
-                        maxMaxBufferLength: 60,
-                        liveSyncDurationCount: 3,
-                        liveMaxLatencyDurationCount: 10,
-                        enableWebVTT: false,
-                        debug: false,
-                    });
-                    
-                    hls.loadSource(YAYIN_URL);
-                    hls.attachMedia(video);
-                    
-                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                        setStatus('▶️ Canlı Yayın', 'playing');
-                        video.play().catch(() => {});
-                        retryCount = 0;
-                        showReconnectButton(false);
-                    });
-                    
-                    hls.on(Hls.Events.LEVEL_LOADED, () => {
-                        setStatus('▶️ Canlı Yayın', 'playing');
-                        showReconnectButton(false);
-                    });
-                    
-                    hls.on(Hls.Events.FRAG_LOADING, () => {
-                        // Sessizce devam
-                    });
-                    
-                    hls.on(Hls.Events.FRAG_LOADED, () => {
-                        if (statusEl.className !== 'playing') {
-                            setStatus('▶️ Canlı Yayın', 'playing');
-                        }
-                    });
-                    
-                    hls.on(Hls.Events.ERROR, (event, data) => {
-                        if (data.fatal) {
-                            if (retryCount < MAX_RETRIES) {
-                                attemptReconnect();
-                            } else {
-                                setStatus('❌ Bağlantı kesildi', 'error');
-                                showReconnectButton(true);
-                            }
-                        } else {
-                            // Non-fatal hata, sessizce devam
-                            if (data.type === 'mediaError') {
-                                // Buffer problemi, yeniden yükleme dene
-                                if (!isReconnecting && retryCount < MAX_RETRIES) {
-                                    attemptReconnect();
-                                }
-                            }
-                        }
-                    });
-                    
-                    // Bağlantı koptuğunda otomatik yeniden bağlanma
-                    hls.on(Hls.Events.LEVEL_SWITCHING, () => {
-                        // Seviye değişiminde sorun yok
-                    });
-                    
-                } catch (e) {
-                    setStatus('❌ Başlatma hatası', 'error');
-                    showReconnectButton(true);
-                }
-            }
-            
-            // Manuel yeniden bağlanma
-            reconnectBtn.addEventListener('click', () => {
-                retryCount = 0;
-                isDestroyed = false;
-                isReconnecting = false;
-                destroyPlayer();
-                setTimeout(() => {
-                    isDestroyed = false;
-                    initPlayer();
-                }, 500);
-            });
-            
-            // Sayfa görünürlük değiştiğinde kontrol et
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden) {
-                    // Sayfaya dönüldü
-                    if (video.paused && !video.ended) {
-                        video.play().catch(() => {});
-                    }
-                    // Eğer video donduysa ve 5 saniye içinde ilerleme yoksa yeniden bağlan
-                }
-            });
-            
-            // İnternet bağlantısı kontrolü
-            window.addEventListener('online', () => {
-                if (video.paused || video.readyState < 2) {
-                    retryCount = 0;
-                    isDestroyed = false;
-                    destroyPlayer();
-                    setTimeout(() => {
-                        isDestroyed = false;
-                        initPlayer();
-                    }, 1000);
-                }
-            });
-            
-            // Başlat
-            initPlayer();
-            
-            // Temizlik
-            window.addEventListener('beforeunload', () => {
-                destroyPlayer();
-            });
-            
-        })();
-    </script>
-</body>
-</html>
+                await update.message.reply_photo(
+                    photo=poster_url,
+                    caption=mesaj,
+                    reply_markup=reply_markup
+                )
+            except:
+                await update.message.reply_text(mesaj)
+        else:
+            await update.message.reply_text(mesaj)
+
+    async def button_handler(self, update: Update, context):
+        query = update.callback_query
+        await query.answer()
+        
+        data = query.data
+        
+        if data.startswith("film_"):
+            film_id = int(data.replace("film_", ""))
+            detay = film_detay(film_id)
+            if detay:
+                await self.film_goster(query, detay)
+            else:
+                await query.edit_message_text("❌ Film detaylari alinamadi.")
+        
+        elif data.startswith("dizi_"):
+            dizi_id = int(data.replace("dizi_", ""))
+            detay = dizi_detay(dizi_id)
+            if detay:
+                await self.dizi_goster(query, detay)
+            else:
+                await query.edit_message_text("❌ Dizi detaylari alinamadi.")
+
+    def run(self):
+        print("🎬 Film Bot baslatiliyor...")
+        print("📱 @bonus_deneme_bot")
+        
+        app = Application.builder().token(TOKEN).build()
+        
+        app.add_handler(CommandHandler("start", self.start))
+        app.add_handler(CommandHandler("yardim", self.yardim))
+        app.add_handler(CommandHandler("film", self.film_ara_komut))
+        app.add_handler(CommandHandler("dizi", self.dizi_ara_komut))
+        app.add_handler(CommandHandler("populer", self.populer_filmler_komut))
+        app.add_handler(CommandHandler("populer_dizi", self.populer_diziler_komut))
+        app.add_handler(CommandHandler("rastgele", self.rastgele_film))
+        app.add_handler(CallbackQueryHandler(self.button_handler))
+        
+        print("✅ Bot calisiyor!")
+        app.run_polling(allowed_updates=Update.ALL_TYPES)
+
+if __name__ == "__main__":
+    bot = FilmBot()
+    bot.run()
