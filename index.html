@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Canlı Yayın</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #000; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        #container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: #0a0a0a;
+        }
+        #player-container {
+            width: 100%;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            position: relative;
+        }
+        video {
+            width: 100%;
+            max-height: 100vh;
+            background: #000;
+        }
+        #status {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #666;
+            font-size: 12px;
+            background: rgba(0,0,0,0.7);
+            padding: 5px 15px;
+            border-radius: 12px;
+            z-index: 10;
+        }
+        #status.loading { color: #ffa500; }
+        #status.playing { color: #00ff88; }
+        #status.error { color: #ff4444; }
+        .controls-hint {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #444;
+            font-size: 11px;
+            background: rgba(0,0,0,0.5);
+            padding: 4px 10px;
+            border-radius: 8px;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="player-container">
+            <video id="player" playsinline></video>
+            <div id="status">⏳ Yükleniyor...</div>
+            <div class="controls-hint">🎮 Kontroller ekranda</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@0.14.17/dist/hls.min.js"></script>
+    <script>
+        const video = document.getElementById('player');
+        const statusEl = document.getElementById('status');
+        
+        // ===== YAYIN LİNKİ (DEĞİŞTİRİLEBİLİR) =====
+        const YAYIN_URL = 'https://tzy.zirvedesin236.cfd/taraftarium/mono.m3u8';
+        
+        function setStatus(text, type = 'loading') {
+            statusEl.textContent = text;
+            statusEl.className = type;
+        }
+        
+        function initPlayer() {
+            setStatus('⏳ Yayın bağlanıyor...', 'loading');
+            
+            if (Hls.isSupported()) {
+                const hls = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                    maxBufferLength: 10,
+                    maxMaxBufferLength: 20,
+                });
+                
+                hls.loadSource(YAYIN_URL);
+                hls.attachMedia(video);
+                
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    setStatus('▶️ Canlı Yayın', 'playing');
+                    video.play().catch(() => {});
+                });
+                
+                hls.on(Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) {
+                        setStatus('❌ Yayın hatası, yeniden bağlanılıyor...', 'error');
+                        setTimeout(() => {
+                            hls.loadSource(YAYIN_URL);
+                        }, 3000);
+                    }
+                });
+                
+                hls.on(Hls.Events.LEVEL_LOADED, () => {
+                    setStatus('▶️ Canlı Yayın', 'playing');
+                });
+                
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Safari için
+                video.src = YAYIN_URL;
+                video.addEventListener('loadedmetadata', () => {
+                    setStatus('▶️ Canlı Yayın', 'playing');
+                    video.play().catch(() => {});
+                });
+            } else {
+                setStatus('❌ Tarayıcı desteklemiyor', 'error');
+            }
+        }
+        
+        // Başlat
+        initPlayer();
+    </script>
+</body>
+</html>
