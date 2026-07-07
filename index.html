@@ -43,19 +43,24 @@
             left: 50%;
             transform: translateX(-50%);
             color: #888;
-            font-size: 14px;
-            background: rgba(0,0,0,0.8);
+            font-size: 13px;
+            background: rgba(0,0,0,0.85);
             padding: 8px 20px;
             border-radius: 20px;
             border: 1px solid #222;
             text-align: center;
-            white-space: nowrap;
             z-index: 10;
+            backdrop-filter: blur(4px);
+            white-space: nowrap;
         }
         #status.loading { color: #ffa500; }
         #status.playing { color: #00ff88; }
         #status.error { color: #ff4444; }
-        #status.ready { color: #4fc3f7; }
+        #status.reconnecting { color: #ffaa00; animation: pulse 1s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
         .top-bar {
             position: absolute;
             top: 0;
@@ -71,9 +76,9 @@
         }
         .top-bar span {
             color: #aaa;
-            font-size: 12px;
+            font-size: 11px;
             letter-spacing: 0.5px;
-            background: rgba(0,0,0,0.4);
+            background: rgba(0,0,0,0.5);
             padding: 4px 12px;
             border-radius: 12px;
             backdrop-filter: blur(4px);
@@ -84,21 +89,24 @@
             bottom: 80px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.15);
-            color: #aaa;
-            padding: 8px 20px;
-            border-radius: 20px;
-            font-size: 12px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 10px 24px;
+            border-radius: 25px;
+            font-size: 14px;
             cursor: pointer;
             z-index: 10;
             display: none;
             backdrop-filter: blur(8px);
             transition: all 0.3s ease;
+            font-weight: 500;
         }
         .reconnect-btn:hover {
-            background: rgba(255,255,255,0.15);
-            color: #fff;
+            background: rgba(255,255,255,0.2);
+        }
+        .reconnect-btn.show {
+            display: block;
         }
     </style>
 </head>
@@ -117,7 +125,6 @@
         </div>
     </div>
 
-    <!-- GÜNCEL HLS.JS KÜTÜPHANESİ -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@0.14.17/dist/hls.min.js"></script>
     <script>
         (function() {
@@ -125,12 +132,15 @@
             const statusEl = document.getElementById('status');
             const reconnectBtn = document.getElementById('reconnectBtn');
             
-            // ===== YAYIN LİNKİ (GÜNCEL) =====
+            // ===== YAYIN LİNKİ =====
             const YAYIN_URL = 'https://tzy.zirvedesin236.cfd/taraftarium/mono.m3u8';
             
             let hls = null;
             let retryCount = 0;
-            const MAX_RETRIES = 5;
+            const MAX_RETRIES = 10;
+            let isDestroyed = false;
+            let reconnectTimer = null;
+            let isReconnecting = false;
             
             function setStatus(text, type = 'loading') {
                 statusEl.textContent = text;
@@ -138,31 +148,96 @@
             }
             
             function showReconnectButton(show = true) {
-                reconnectBtn.style.display = show ? 'block' : 'none';
+                if (show) {
+                    reconnectBtn.classList.add('show');
+                } else {
+                    reconnectBtn.classList.remove('show');
+                }
             }
             
             function destroyPlayer() {
+                isDestroyed = true;
+                if (reconnectTimer) {
+                    clearTimeout(reconnectTimer);
+                    reconnectTimer = null;
+                }
                 if (hls) {
-                    hls.destroy();
+                    try {
+                        hls.destroy();
+                    } catch(e) {}
                     hls = null;
                 }
-                video.pause();
-                video.removeAttribute('src');
-                video.load();
+                try {
+                    video.pause();
+                    video.removeAttribute('src');
+                    video.load();
+                } catch(e) {}
+                isReconnecting = false;
+            }
+            
+            function attemptReconnect() {
+                if (isDestroyed) return;
+                if (isReconnecting) return;
+                
+                isReconnecting = true;
+                retryCount++;
+                setStatus(`🔄 Yeniden bağlanılıyor (${retryCount}/${MAX_RETRIES})...`, 'reconnecting');
+                showReconnectButton(false);
+                
+                destroyPlayer();
+                
+                setTimeout(() => {
+                    isDestroyed = false;
+                    isReconnecting = false;
+                    if (retryCount <= MAX_RETRIES) {
+                        initPlayer();
+                    } else {
+                        setStatus('❌ Bağlantı sağlanamadı', 'error');
+                        showReconnectButton(true);
+                    }
+                }, 2000 * Math.min(retryCount, 5));
             }
             
             function initPlayer() {
-                destroyPlayer();
+                if (isDestroyed) return;
+                
                 setStatus('⏳ Yayın bağlanıyor...', 'loading');
                 showReconnectButton(false);
                 
-                // 1. HLS.js ile dene
-                if (Hls.isSupported()) {
+                if (!Hls.isSupported()) {
+                    // Safari native HLS
+                    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                        video.src = YAYIN_URL;
+                        video.addEventListener('loadedmetadata', function onLoad() {
+                            setStatus('▶️ Canlı Yayın', 'playing');
+                            video.play().catch(() => {});
+                            retryCount = 0;
+                            showReconnectButton(false);
+                            video.removeEventListener('loadedmetadata', onLoad);
+                        });
+                        video.addEventListener('error', function onError() {
+                            setStatus('⚠️ Yükleme hatası', 'error');
+                            showReconnectButton(true);
+                            video.removeEventListener('error', onError);
+                        });
+                        return;
+                    } else {
+                        setStatus('❌ Tarayıcı desteklemiyor', 'error');
+                        showReconnectButton(true);
+                        return;
+                    }
+                }
+                
+                // HLS.js ile
+                try {
                     hls = new Hls({
                         enableWorker: false,
                         lowLatencyMode: true,
-                        maxBufferLength: 10,
-                        maxMaxBufferLength: 20,
+                        maxBufferLength: 30,
+                        maxMaxBufferLength: 60,
+                        liveSyncDurationCount: 3,
+                        liveMaxLatencyDurationCount: 10,
+                        enableWebVTT: false,
                         debug: false,
                     });
                     
@@ -181,40 +256,42 @@
                         showReconnectButton(false);
                     });
                     
+                    hls.on(Hls.Events.FRAG_LOADING, () => {
+                        // Sessizce devam
+                    });
+                    
+                    hls.on(Hls.Events.FRAG_LOADED, () => {
+                        if (statusEl.className !== 'playing') {
+                            setStatus('▶️ Canlı Yayın', 'playing');
+                        }
+                    });
+                    
                     hls.on(Hls.Events.ERROR, (event, data) => {
                         if (data.fatal) {
-                            setStatus('⚠️ Bağlantı kesildi, yeniden deneniyor...', 'error');
-                            showReconnectButton(true);
-                            
                             if (retryCount < MAX_RETRIES) {
-                                retryCount++;
-                                setTimeout(() => {
-                                    initPlayer();
-                                }, 3000 * retryCount);
+                                attemptReconnect();
                             } else {
-                                setStatus('❌ Yayın ulaşılamıyor', 'error');
+                                setStatus('❌ Bağlantı kesildi', 'error');
                                 showReconnectButton(true);
+                            }
+                        } else {
+                            // Non-fatal hata, sessizce devam
+                            if (data.type === 'mediaError') {
+                                // Buffer problemi, yeniden yükleme dene
+                                if (!isReconnecting && retryCount < MAX_RETRIES) {
+                                    attemptReconnect();
+                                }
                             }
                         }
                     });
                     
-                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                    // 2. Safari / iOS için native HLS
-                    video.src = YAYIN_URL;
-                    video.addEventListener('loadedmetadata', () => {
-                        setStatus('▶️ Canlı Yayın', 'playing');
-                        video.play().catch(() => {});
-                        retryCount = 0;
-                        showReconnectButton(false);
-                    });
-                    video.addEventListener('error', () => {
-                        setStatus('⚠️ Safari yükleme hatası', 'error');
-                        showReconnectButton(true);
+                    // Bağlantı koptuğunda otomatik yeniden bağlanma
+                    hls.on(Hls.Events.LEVEL_SWITCHING, () => {
+                        // Seviye değişiminde sorun yok
                     });
                     
-                } else {
-                    // 3. Hiçbiri desteklemiyor
-                    setStatus('❌ Tarayıcı desteklemiyor', 'error');
+                } catch (e) {
+                    setStatus('❌ Başlatma hatası', 'error');
                     showReconnectButton(true);
                 }
             }
@@ -222,28 +299,45 @@
             // Manuel yeniden bağlanma
             reconnectBtn.addEventListener('click', () => {
                 retryCount = 0;
-                initPlayer();
+                isDestroyed = false;
+                isReconnecting = false;
+                destroyPlayer();
+                setTimeout(() => {
+                    isDestroyed = false;
+                    initPlayer();
+                }, 500);
+            });
+            
+            // Sayfa görünürlük değiştiğinde kontrol et
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    // Sayfaya dönüldü
+                    if (video.paused && !video.ended) {
+                        video.play().catch(() => {});
+                    }
+                    // Eğer video donduysa ve 5 saniye içinde ilerleme yoksa yeniden bağlan
+                }
+            });
+            
+            // İnternet bağlantısı kontrolü
+            window.addEventListener('online', () => {
+                if (video.paused || video.readyState < 2) {
+                    retryCount = 0;
+                    isDestroyed = false;
+                    destroyPlayer();
+                    setTimeout(() => {
+                        isDestroyed = false;
+                        initPlayer();
+                    }, 1000);
+                }
             });
             
             // Başlat
             initPlayer();
             
-            // Sayfa görünürlük değiştiğinde yeniden bağlan (performans için)
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden && !video.paused) {
-                    if (video.readyState < 2) {
-                        retryCount = 0;
-                        initPlayer();
-                    }
-                }
-            });
-            
-            // Hata yakalama
-            window.addEventListener('error', (e) => {
-                if (e.message && e.message.includes('Hls')) {
-                    setStatus('⚠️ Kütüphane hatası, yeniden deneniyor...', 'error');
-                    setTimeout(initPlayer, 2000);
-                }
+            // Temizlik
+            window.addEventListener('beforeunload', () => {
+                destroyPlayer();
             });
             
         })();
