@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🎬 FilmBot</title>
+    <title>🎬 İZLE AMK BELEŞ</title>
     <style>
+        /* ===== RESET ===== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background: #0a0a0a;
@@ -12,74 +13,106 @@
             color: #fff;
             min-height: 100vh;
             padding-bottom: 80px;
+            -webkit-font-smoothing: antialiased;
         }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: #111; }
         ::-webkit-scrollbar-thumb { background: #e50914; border-radius: 4px; }
 
-        /* HEADER */
+        /* ===== HEADER (Netflix tarzı) ===== */
         .header {
-            background: rgba(10, 10, 10, 0.95);
+            background: linear-gradient(180deg, rgba(10,10,10,0.95) 0%, rgba(10,10,10,0.8) 100%);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             padding: 14px 20px;
             position: sticky;
             top: 0;
             z-index: 100;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.03);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         .header h1 {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 700;
             background: linear-gradient(135deg, #e50914, #ff6b6b);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
         }
-        .header span { font-size: 11px; color: #555; }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header-right span {
+            font-size: 11px;
+            color: #555;
+            background: rgba(255,255,255,0.04);
+            padding: 4px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+        .header-right .dot {
+            width: 8px;
+            height: 8px;
+            background: #00ff88;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
 
-        /* SEARCH */
+        /* ===== SEARCH (Netflix tarzı) ===== */
         .search-box {
-            padding: 12px 16px;
+            padding: 12px 20px;
             background: rgba(17, 17, 17, 0.95);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             position: sticky;
-            top: 60px;
+            top: 64px;
             z-index: 99;
         }
         .search-box input {
             width: 100%;
-            padding: 12px 18px;
-            border: 2px solid rgba(255,255,255,0.08);
-            border-radius: 25px;
-            background: rgba(255,255,255,0.05);
+            padding: 14px 20px;
+            border: 2px solid rgba(255,255,255,0.06);
+            border-radius: 30px;
+            background: rgba(255,255,255,0.04);
             color: #fff;
             font-size: 16px;
             outline: none;
             transition: all 0.3s;
+            letter-spacing: 0.3px;
         }
-        .search-box input:focus { border-color: #e50914; background: rgba(255,255,255,0.08); }
-        .search-box input::placeholder { color: #555; }
+        .search-box input:focus { 
+            border-color: #e50914; 
+            background: rgba(255,255,255,0.08);
+            box-shadow: 0 0 30px rgba(229, 9, 20, 0.1);
+        }
+        .search-box input::placeholder { color: #555; font-weight: 300; }
 
-        /* SECTION */
+        /* ===== SECTION ===== */
         .section-title {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 600;
-            padding: 16px 16px 8px 16px;
+            padding: 20px 20px 10px 20px;
+            letter-spacing: -0.3px;
         }
         .section-title span { color: #e50914; }
 
-        /* SLIDER */
+        /* ===== SLIDER (Netflix tarzı) ===== */
         .slider-container {
             padding: 0 16px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
         .slider {
             display: flex;
-            gap: 12px;
+            gap: 14px;
             overflow-x: auto;
             overflow-y: hidden;
             padding: 8px 0 16px 0;
@@ -89,62 +122,78 @@
         }
         .slider::-webkit-scrollbar { display: none; }
         .slider-item {
-            flex: 0 0 130px;
+            flex: 0 0 140px;
             scroll-snap-align: start;
             cursor: pointer;
-            transition: transform 0.2s;
-            border-radius: 12px;
+            transition: all 0.25s ease;
+            border-radius: 14px;
             overflow: hidden;
             background: #141414;
             border: 1px solid rgba(255,255,255,0.04);
+            position: relative;
         }
+        .slider-item:hover { transform: scale(1.03); border-color: rgba(255,255,255,0.1); }
         .slider-item:active { transform: scale(0.94); }
         .slider-item img {
             width: 100%;
-            height: 180px;
+            height: 190px;
             object-fit: cover;
             display: block;
         }
-        .slider-item .info { padding: 8px 10px; }
+        .slider-item .info { padding: 10px 12px; }
         .slider-item .title {
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 600;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
         .slider-item .year {
-            font-size: 10px;
+            font-size: 11px;
             color: #666;
+            margin-top: 2px;
         }
         .slider-item .rating {
-            font-size: 10px;
+            font-size: 11px;
             color: #f5c518;
         }
+        .slider-item .badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(229, 9, 20, 0.85);
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            backdrop-filter: blur(4px);
+        }
 
-        /* RESULTS GRID */
+        /* ===== RESULTS ===== */
         .results {
             padding: 8px 16px 20px 16px;
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            gap: 14px;
         }
         .movie-card {
             background: #141414;
-            border-radius: 12px;
+            border-radius: 14px;
             overflow: hidden;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: all 0.25s ease;
             border: 1px solid rgba(255,255,255,0.04);
+            position: relative;
         }
         .movie-card:active { transform: scale(0.94); }
         .movie-card img {
             width: 100%;
-            height: 180px;
+            height: 190px;
             object-fit: cover;
             background: #1a1a1a;
         }
-        .movie-card .info { padding: 8px 10px; }
+        .movie-card .info { padding: 10px 12px; }
         .movie-card .title {
             font-size: 13px;
             font-weight: 600;
@@ -160,66 +209,84 @@
             font-size: 11px;
             color: #f5c518;
         }
+        .movie-card .badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(229, 9, 20, 0.85);
+            padding: 2px 10px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: 700;
+            backdrop-filter: blur(4px);
+        }
         .no-results {
             text-align: center;
             color: #555;
-            padding: 40px 20px;
+            padding: 50px 20px;
             grid-column: 1 / -1;
+            font-size: 15px;
         }
         .result-count {
             color: #555;
-            font-size: 12px;
-            padding: 0 16px 4px 16px;
+            font-size: 13px;
+            padding: 0 20px 6px 20px;
         }
 
-        /* DETAIL */
+        /* ===== DETAIL ===== */
         .detail-page {
             display: none;
-            padding: 16px 16px 30px 16px;
-            animation: fadeIn 0.3s;
+            padding: 16px 20px 30px 20px;
+            animation: fadeIn 0.35s ease;
         }
         .detail-page.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         .detail-poster {
             width: 100%;
-            max-height: 320px;
+            max-height: 350px;
             object-fit: cover;
-            border-radius: 16px;
-            margin-bottom: 14px;
+            border-radius: 18px;
+            margin-bottom: 16px;
             background: #1a1a1a;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.4);
         }
-        .detail-title { font-size: 24px; font-weight: 700; }
+        .detail-title { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
         .detail-meta { color: #888; font-size: 14px; margin-top: 4px; }
-        .detail-overview { color: #aaa; font-size: 14px; margin-top: 10px; line-height: 1.6; }
-        .detail-genres { color: #666; font-size: 13px; margin-top: 6px; }
+        .detail-overview { color: #aaa; font-size: 14px; margin-top: 12px; line-height: 1.7; }
+        .detail-genres { color: #666; font-size: 13px; margin-top: 8px; }
+        .detail-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
         .back-btn {
             background: rgba(255,255,255,0.06);
             border: 1px solid rgba(255,255,255,0.08);
             color: #fff;
-            padding: 10px 20px;
-            border-radius: 20px;
+            padding: 12px 24px;
+            border-radius: 25px;
             font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
-            margin-bottom: 14px;
             transition: background 0.2s;
+            flex: 1;
         }
         .back-btn:active { background: rgba(255,255,255,0.12); }
         .watch-btn {
             background: linear-gradient(135deg, #e50914, #c40812);
             border: none;
             color: #fff;
-            padding: 14px;
+            padding: 12px 24px;
             border-radius: 25px;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 14px;
-            width: 100%;
             transition: opacity 0.2s;
+            flex: 2;
         }
         .watch-btn:active { opacity: 0.7; }
 
-        /* PLAYER */
+        /* ===== PLAYER (Netflix tarzı) ===== */
         .player-container {
             display: none;
             position: fixed;
@@ -233,18 +300,18 @@
         }
         .player-container.active { display: flex; }
         .player-header {
-            padding: 12px 16px;
+            padding: 14px 20px;
             background: rgba(17,17,17,0.95);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
             flex-shrink: 0;
         }
         .player-header .title {
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 600;
             white-space: nowrap;
             overflow: hidden;
@@ -255,39 +322,42 @@
             background: none;
             border: none;
             color: #fff;
-            font-size: 24px;
+            font-size: 26px;
             cursor: pointer;
             padding: 0 8px;
             opacity: 0.7;
+            transition: opacity 0.2s;
         }
         .close-btn:active { opacity: 1; }
         .player-selector {
             display: flex;
-            gap: 6px;
-            padding: 10px 16px;
+            gap: 8px;
+            padding: 12px 20px;
             background: rgba(17,17,17,0.95);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
             flex-wrap: wrap;
             flex-shrink: 0;
         }
         .player-selector button {
-            padding: 6px 14px;
-            border: 2px solid rgba(255,255,255,0.08);
-            border-radius: 20px;
+            padding: 8px 18px;
+            border: 2px solid rgba(255,255,255,0.06);
+            border-radius: 25px;
             background: transparent;
             color: #666;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
+            letter-spacing: 0.3px;
         }
         .player-selector button:active { transform: scale(0.94); }
         .player-selector button.active {
             border-color: #e50914;
             color: #fff;
-            background: rgba(229, 9, 20, 0.15);
+            background: rgba(229, 9, 20, 0.12);
+            box-shadow: 0 0 20px rgba(229, 9, 20, 0.05);
         }
         .player-body {
             flex: 1;
@@ -305,39 +375,57 @@
         }
         .player-loading {
             position: absolute;
-            color: #555;
+            color: #444;
             font-size: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
         }
+        .player-loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #222;
+            border-top-color: #e50914;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
+        /* ===== RESPONSIVE ===== */
         @media (min-width: 600px) {
-            .slider-item { flex: 0 0 180px; }
-            .slider-item img { height: 250px; }
+            .slider-item { flex: 0 0 200px; }
+            .slider-item img { height: 270px; }
             .results { grid-template-columns: repeat(3, 1fr); }
-            .movie-card img { height: 240px; }
-            .detail-poster { max-height: 450px; }
+            .movie-card img { height: 260px; }
+            .detail-poster { max-height: 480px; }
         }
         @media (max-width: 400px) {
-            .slider-item { flex: 0 0 110px; }
-            .slider-item img { height: 150px; }
-            .results { gap: 8px; }
-            .movie-card img { height: 150px; }
+            .slider-item { flex: 0 0 120px; }
+            .slider-item img { height: 160px; }
+            .results { gap: 10px; }
+            .movie-card img { height: 160px; }
+            .detail-title { font-size: 20px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- HEADER -->
+    <!-- ===== HEADER ===== -->
     <div class="header">
         <h1>🎬 FilmBot</h1>
-        <span>📱 Mini App</span>
+        <div class="header-right">
+            <span class="dot"></span>
+            <span>HD</span>
+        </div>
     </div>
 
-    <!-- SEARCH -->
+    <!-- ===== SEARCH ===== -->
     <div class="search-box">
         <input type="text" id="searchInput" placeholder="Film, dizi veya anime ara..." autofocus>
     </div>
 
-    <!-- ANA SAYFA -->
+    <!-- ===== HOME ===== -->
     <div id="homePage">
         <div class="section-title">🔥 <span>Popüler</span> Filmler</div>
         <div class="slider-container">
@@ -355,22 +443,24 @@
         </div>
     </div>
 
-    <!-- SONUÇLAR -->
+    <!-- ===== RESULTS ===== -->
     <div id="resultCount" class="result-count"></div>
     <div class="results" id="results"></div>
 
-    <!-- DETAY -->
+    <!-- ===== DETAIL ===== -->
     <div class="detail-page" id="detailPage">
-        <button class="back-btn" id="backBtn">← Geri</button>
         <img class="detail-poster" id="detailPoster" src="" alt="">
         <div class="detail-title" id="detailTitle">-</div>
         <div class="detail-meta" id="detailMeta">-</div>
         <div class="detail-genres" id="detailGenres">-</div>
         <div class="detail-overview" id="detailOverview">-</div>
-        <button class="watch-btn" id="watchBtn">▶ İZLE</button>
+        <div class="detail-actions">
+            <button class="back-btn" id="backBtn">← Geri</button>
+            <button class="watch-btn" id="watchBtn">▶ İZLE</button>
+        </div>
     </div>
 
-    <!-- PLAYER -->
+    <!-- ===== PLAYER ===== -->
     <div class="player-container" id="playerContainer">
         <div class="player-header">
             <span class="title" id="playerTitle">Yükleniyor...</span>
@@ -380,12 +470,13 @@
             <button class="active" data-player="vidsrc">VidSrc</button>
             <button data-player="2embed">2Embed</button>
             <button data-player="multiembed">MultiEmbed</button>
-            <button data-player="embedplus">EmbedPlus</button>
-            <button data-player="gogo">Gogo</button>
         </div>
         <div class="player-body">
-            <div class="player-loading" id="playerLoading">⏳ Yükleniyor...</div>
-            <iframe id="playerIframe" allowfullscreen></iframe>
+            <div class="player-loading" id="playerLoading">
+                <div class="spinner"></div>
+                <span>⏳ Yükleniyor...</span>
+            </div>
+            <iframe id="playerIframe" allow="autoplay; fullscreen; encrypted-media" allowfullscreen></iframe>
         </div>
     </div>
 
@@ -395,13 +486,11 @@
         const TMDB_IMAGE_URL = 'https://image.tmdb.org/t/p/w500';
         const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
-        // ===== PLAYER =====
+        // ===== PLAYER (SADECE ÇALIŞANLAR) =====
         const PLAYERS = {
-            vidsrc: { name: 'VidSrc', url: (type, id) => `https://vidsrc.to/embed/${type}/${id}` },
+            vidsrc: { name: 'VidSrc', url: (type, id) => `https://vidsrc.in/embed/${type}/${id}` },
             '2embed': { name: '2Embed', url: (type, id) => `https://www.2embed.to/embed/tmdb/${type}/${id}` },
-            multiembed: { name: 'MultiEmbed', url: (type, id) => `https://multiembed.mov/?video_id=${id}` },
-            embedplus: { name: 'EmbedPlus', url: (type, id) => `https://www.embedplus.com/embed.php?id=${id}` },
-            gogo: { name: 'Gogo', url: (type, id) => `https://gogoanime.ee/embed/${type}?id=${id}` }
+            multiembed: { name: 'MultiEmbed', url: (type, id) => `https://multiembed.mov/directstream.php?video_id=${id}` }
         };
 
         // ===== STATE =====
@@ -487,9 +576,11 @@
                 const rating = item.vote_average ? item.vote_average.toFixed(1) : '?';
                 const id = item.id;
                 const itemType = type === 'anime' ? 'tv' : type;
+                const badge = type === 'movie' ? '🎬' : type === 'anime' ? '🎌' : '📺';
                 html += `
                     <div class="slider-item" onclick="openDetail(${id}, '${itemType}')">
-                        ${poster ? `<img src="${poster}" alt="${title}" loading="lazy" onerror="this.style.display='none'">` : `<div style="height:180px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#444;">${type === 'movie' ? '🎬' : '📺'}</div>`}
+                        ${poster ? `<img src="${poster}" alt="${title}" loading="lazy" onerror="this.style.display='none'">` : `<div style="height:190px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#444;">${badge}</div>`}
+                        <div class="badge">${badge}</div>
                         <div class="info">
                             <div class="title">${title}</div>
                             <div class="year">${year} ⭐ ${rating}</div>
@@ -513,10 +604,11 @@
                 const year = item._type === 'movie' ? (item.release_date || '').slice(0,4) : (item.first_air_date || '').slice(0,4);
                 const poster = item.poster_path ? `${TMDB_IMAGE_URL}${item.poster_path}` : '';
                 const rating = item.vote_average ? item.vote_average.toFixed(1) : '?';
-                const typeIcon = item._type === 'movie' ? '🎬' : '📺';
+                const badge = item._type === 'movie' ? '🎬' : '📺';
                 html += `
                     <div class="movie-card" onclick="openDetail(${item.id}, '${item._type}')">
-                        ${poster ? `<img src="${poster}" alt="${title}" loading="lazy" onerror="this.style.display='none'">` : `<div style="height:180px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#444;">${typeIcon}</div>`}
+                        ${poster ? `<img src="${poster}" alt="${title}" loading="lazy" onerror="this.style.display='none'">` : `<div style="height:190px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#444;">${badge}</div>`}
+                        <div class="badge">${badge}</div>
                         <div class="info">
                             <div class="title">${title}</div>
                             <div class="year">${year} ⭐ ${rating}</div>
@@ -580,12 +672,12 @@
             document.querySelectorAll('.player-selector button').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.player === playerKey);
             });
-            playerLoading.style.display = 'block';
+            playerLoading.style.display = 'flex';
             playerIframe.src = '';
             setTimeout(() => {
                 playerIframe.src = url;
                 playerLoading.style.display = 'none';
-            }, 400);
+            }, 500);
         }
 
         function closePlayerFunc() {
