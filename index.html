@@ -6,22 +6,22 @@
     <title>Canlı Yayın</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            background: #000; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        body {
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #fff;
         }
         #container {
             width: 100%;
             height: 100vh;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            background: #0a0a0a;
+            background: #000;
+            position: relative;
         }
         #player-container {
             width: 100%;
@@ -39,29 +39,66 @@
         }
         #status {
             position: absolute;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            color: #666;
-            font-size: 12px;
-            background: rgba(0,0,0,0.7);
-            padding: 5px 15px;
-            border-radius: 12px;
+            color: #888;
+            font-size: 14px;
+            background: rgba(0,0,0,0.8);
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 1px solid #222;
+            text-align: center;
+            white-space: nowrap;
             z-index: 10;
         }
         #status.loading { color: #ffa500; }
         #status.playing { color: #00ff88; }
         #status.error { color: #ff4444; }
-        .controls-hint {
+        #status.ready { color: #4fc3f7; }
+        .top-bar {
             position: absolute;
-            top: 20px;
-            right: 20px;
-            color: #444;
-            font-size: 11px;
-            background: rgba(0,0,0,0.5);
-            padding: 4px 10px;
-            border-radius: 8px;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 12px 16px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
             z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+        }
+        .top-bar span {
+            color: #aaa;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            background: rgba(0,0,0,0.4);
+            padding: 4px 12px;
+            border-radius: 12px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .reconnect-btn {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #aaa;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 10;
+            display: none;
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+        }
+        .reconnect-btn:hover {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
         }
     </style>
 </head>
@@ -69,70 +106,147 @@
     <div id="container">
         <div id="player-container">
             <video id="player" playsinline></video>
-            <div id="status">⏳ Yükleniyor...</div>
-            <div class="controls-hint">🎮 Kontroller ekranda</div>
+            
+            <div class="top-bar">
+                <span>📺 CANLI YAYIN</span>
+                <span>⚡ HD</span>
+            </div>
+            
+            <div id="status">⏳ Bağlanıyor...</div>
+            <button class="reconnect-btn" id="reconnectBtn">🔄 Yeniden Bağlan</button>
         </div>
     </div>
 
+    <!-- GÜNCEL HLS.JS KÜTÜPHANESİ -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@0.14.17/dist/hls.min.js"></script>
     <script>
-        const video = document.getElementById('player');
-        const statusEl = document.getElementById('status');
-        
-        // ===== YAYIN LİNKİ (DEĞİŞTİRİLEBİLİR) =====
-        const YAYIN_URL = 'https://tzy.zirvedesin236.cfd/taraftarium/mono.m3u8';
-        
-        function setStatus(text, type = 'loading') {
-            statusEl.textContent = text;
-            statusEl.className = type;
-        }
-        
-        function initPlayer() {
-            setStatus('⏳ Yayın bağlanıyor...', 'loading');
+        (function() {
+            const video = document.getElementById('player');
+            const statusEl = document.getElementById('status');
+            const reconnectBtn = document.getElementById('reconnectBtn');
             
-            if (Hls.isSupported()) {
-                const hls = new Hls({
-                    enableWorker: true,
-                    lowLatencyMode: true,
-                    maxBufferLength: 10,
-                    maxMaxBufferLength: 20,
-                });
-                
-                hls.loadSource(YAYIN_URL);
-                hls.attachMedia(video);
-                
-                hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                    setStatus('▶️ Canlı Yayın', 'playing');
-                    video.play().catch(() => {});
-                });
-                
-                hls.on(Hls.Events.ERROR, (event, data) => {
-                    if (data.fatal) {
-                        setStatus('❌ Yayın hatası, yeniden bağlanılıyor...', 'error');
-                        setTimeout(() => {
-                            hls.loadSource(YAYIN_URL);
-                        }, 3000);
-                    }
-                });
-                
-                hls.on(Hls.Events.LEVEL_LOADED, () => {
-                    setStatus('▶️ Canlı Yayın', 'playing');
-                });
-                
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                // Safari için
-                video.src = YAYIN_URL;
-                video.addEventListener('loadedmetadata', () => {
-                    setStatus('▶️ Canlı Yayın', 'playing');
-                    video.play().catch(() => {});
-                });
-            } else {
-                setStatus('❌ Tarayıcı desteklemiyor', 'error');
+            // ===== YAYIN LİNKİ (GÜNCEL) =====
+            const YAYIN_URL = 'https://tzy.zirvedesin236.cfd/taraftarium/mono.m3u8';
+            
+            let hls = null;
+            let retryCount = 0;
+            const MAX_RETRIES = 5;
+            
+            function setStatus(text, type = 'loading') {
+                statusEl.textContent = text;
+                statusEl.className = type;
             }
-        }
-        
-        // Başlat
-        initPlayer();
+            
+            function showReconnectButton(show = true) {
+                reconnectBtn.style.display = show ? 'block' : 'none';
+            }
+            
+            function destroyPlayer() {
+                if (hls) {
+                    hls.destroy();
+                    hls = null;
+                }
+                video.pause();
+                video.removeAttribute('src');
+                video.load();
+            }
+            
+            function initPlayer() {
+                destroyPlayer();
+                setStatus('⏳ Yayın bağlanıyor...', 'loading');
+                showReconnectButton(false);
+                
+                // 1. HLS.js ile dene
+                if (Hls.isSupported()) {
+                    hls = new Hls({
+                        enableWorker: false,
+                        lowLatencyMode: true,
+                        maxBufferLength: 10,
+                        maxMaxBufferLength: 20,
+                        debug: false,
+                    });
+                    
+                    hls.loadSource(YAYIN_URL);
+                    hls.attachMedia(video);
+                    
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        setStatus('▶️ Canlı Yayın', 'playing');
+                        video.play().catch(() => {});
+                        retryCount = 0;
+                        showReconnectButton(false);
+                    });
+                    
+                    hls.on(Hls.Events.LEVEL_LOADED, () => {
+                        setStatus('▶️ Canlı Yayın', 'playing');
+                        showReconnectButton(false);
+                    });
+                    
+                    hls.on(Hls.Events.ERROR, (event, data) => {
+                        if (data.fatal) {
+                            setStatus('⚠️ Bağlantı kesildi, yeniden deneniyor...', 'error');
+                            showReconnectButton(true);
+                            
+                            if (retryCount < MAX_RETRIES) {
+                                retryCount++;
+                                setTimeout(() => {
+                                    initPlayer();
+                                }, 3000 * retryCount);
+                            } else {
+                                setStatus('❌ Yayın ulaşılamıyor', 'error');
+                                showReconnectButton(true);
+                            }
+                        }
+                    });
+                    
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    // 2. Safari / iOS için native HLS
+                    video.src = YAYIN_URL;
+                    video.addEventListener('loadedmetadata', () => {
+                        setStatus('▶️ Canlı Yayın', 'playing');
+                        video.play().catch(() => {});
+                        retryCount = 0;
+                        showReconnectButton(false);
+                    });
+                    video.addEventListener('error', () => {
+                        setStatus('⚠️ Safari yükleme hatası', 'error');
+                        showReconnectButton(true);
+                    });
+                    
+                } else {
+                    // 3. Hiçbiri desteklemiyor
+                    setStatus('❌ Tarayıcı desteklemiyor', 'error');
+                    showReconnectButton(true);
+                }
+            }
+            
+            // Manuel yeniden bağlanma
+            reconnectBtn.addEventListener('click', () => {
+                retryCount = 0;
+                initPlayer();
+            });
+            
+            // Başlat
+            initPlayer();
+            
+            // Sayfa görünürlük değiştiğinde yeniden bağlan (performans için)
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && !video.paused) {
+                    if (video.readyState < 2) {
+                        retryCount = 0;
+                        initPlayer();
+                    }
+                }
+            });
+            
+            // Hata yakalama
+            window.addEventListener('error', (e) => {
+                if (e.message && e.message.includes('Hls')) {
+                    setStatus('⚠️ Kütüphane hatası, yeniden deneniyor...', 'error');
+                    setTimeout(initPlayer, 2000);
+                }
+            });
+            
+        })();
     </script>
 </body>
 </html>
