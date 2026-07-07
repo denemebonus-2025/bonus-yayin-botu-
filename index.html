@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>🎬 FilmBot</title>
     <style>
+        /* ===== RESET & BASE ===== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background: #0a0a0a;
@@ -12,60 +13,140 @@
             color: #fff;
             min-height: 100vh;
             padding-bottom: 80px;
+            -webkit-font-smoothing: antialiased;
         }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #e50914; border-radius: 4px; }
+
+        /* ===== HEADER ===== */
         .header {
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
-            padding: 15px 20px;
+            background: rgba(10, 10, 10, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 14px 20px;
             position: sticky;
             top: 0;
             z-index: 100;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .header h1 { font-size: 20px; color: #e50914; }
-        .header span { font-size: 12px; color: #666; }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #e50914, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header span { font-size: 11px; color: #555; letter-spacing: 0.5px; }
+
+        /* ===== SEARCH ===== */
         .search-box {
             padding: 12px 16px;
-            background: #111;
+            background: rgba(17, 17, 17, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             position: sticky;
             top: 60px;
             z-index: 99;
         }
         .search-box input {
             width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #333;
+            padding: 12px 18px;
+            border: 2px solid rgba(255,255,255,0.08);
             border-radius: 25px;
-            background: #1a1a1a;
+            background: rgba(255,255,255,0.05);
             color: #fff;
             font-size: 16px;
             outline: none;
-            transition: border 0.3s;
+            transition: all 0.3s;
         }
-        .search-box input:focus { border-color: #e50914; }
-        .search-box input::placeholder { color: #666; }
+        .search-box input:focus { border-color: #e50914; background: rgba(255,255,255,0.08); }
+        .search-box input::placeholder { color: #555; }
+
+        /* ===== SLIDER BAŞLIK ===== */
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            padding: 16px 16px 8px 16px;
+            letter-spacing: 0.3px;
+        }
+        .section-title span { color: #e50914; }
+
+        /* ===== SLIDER ===== */
+        .slider-container {
+            position: relative;
+            padding: 0 16px;
+            margin-bottom: 12px;
+        }
+        .slider {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 8px 0 16px 0;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .slider::-webkit-scrollbar { display: none; }
+        .slider-item {
+            flex: 0 0 130px;
+            scroll-snap-align: start;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #141414;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+        .slider-item:active { transform: scale(0.94); }
+        .slider-item img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
+        }
+        .slider-item .info { padding: 8px 10px; }
+        .slider-item .title {
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .slider-item .year {
+            font-size: 10px;
+            color: #666;
+        }
+        .slider-item .rating {
+            font-size: 10px;
+            color: #f5c518;
+        }
+
+        /* ===== GRID SONUÇLAR ===== */
         .results {
-            padding: 12px 16px;
+            padding: 8px 16px 20px 16px;
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 12px;
         }
         .movie-card {
-            background: #1a1a1a;
+            background: #141414;
             border-radius: 12px;
             overflow: hidden;
             cursor: pointer;
             transition: transform 0.2s;
-            border: 1px solid #222;
+            border: 1px solid rgba(255,255,255,0.04);
         }
-        .movie-card:active { transform: scale(0.95); }
+        .movie-card:active { transform: scale(0.94); }
         .movie-card img {
             width: 100%;
             height: 180px;
             object-fit: cover;
-            background: #222;
+            background: #1a1a1a;
         }
         .movie-card .info { padding: 8px 10px; }
         .movie-card .title {
@@ -77,7 +158,7 @@
         }
         .movie-card .year {
             font-size: 11px;
-            color: #888;
+            color: #666;
         }
         .movie-card .rating {
             font-size: 11px;
@@ -85,35 +166,56 @@
         }
         .no-results {
             text-align: center;
-            color: #666;
+            color: #555;
             padding: 40px 20px;
             grid-column: 1 / -1;
         }
         .loading-text {
             text-align: center;
-            color: #666;
+            color: #555;
             padding: 40px 20px;
             grid-column: 1 / -1;
         }
-        /* ===== DETAY SAYFASI ===== */
+        .result-count {
+            color: #555;
+            font-size: 12px;
+            padding: 0 16px 4px 16px;
+        }
+
+        /* ===== DETAY ===== */
         .detail-page {
             display: none;
-            padding: 16px;
+            padding: 16px 16px 30px 16px;
+            animation: fadeIn 0.3s;
         }
         .detail-page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .detail-poster {
             width: 100%;
-            max-height: 300px;
+            max-height: 320px;
             object-fit: cover;
-            border-radius: 12px;
-            margin-bottom: 12px;
+            border-radius: 16px;
+            margin-bottom: 14px;
+            background: #1a1a1a;
         }
-        .detail-title { font-size: 22px; font-weight: 700; }
+        .detail-title { font-size: 24px; font-weight: 700; }
         .detail-meta { color: #888; font-size: 14px; margin-top: 4px; }
-        .detail-overview { color: #aaa; font-size: 14px; margin-top: 8px; line-height: 1.5; }
-        .detail-genres { color: #888; font-size: 13px; margin-top: 6px; }
+        .detail-overview { color: #aaa; font-size: 14px; margin-top: 10px; line-height: 1.6; }
+        .detail-genres { color: #666; font-size: 13px; margin-top: 6px; }
+        .back-btn {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-bottom: 14px;
+            transition: background 0.2s;
+        }
+        .back-btn:active { background: rgba(255,255,255,0.12); }
         .watch-btn {
-            background: #e50914;
+            background: linear-gradient(135deg, #e50914, #c40812);
             border: none;
             color: #fff;
             padding: 14px;
@@ -121,21 +223,12 @@
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 12px;
+            margin-top: 14px;
             width: 100%;
             transition: opacity 0.2s;
         }
         .watch-btn:active { opacity: 0.7; }
-        .back-btn {
-            background: #333;
-            border: none;
-            color: #fff;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 14px;
-            cursor: pointer;
-            margin-bottom: 12px;
-        }
+
         /* ===== PLAYER ===== */
         .player-container {
             display: none;
@@ -145,26 +238,28 @@
             right: 0;
             bottom: 0;
             background: #000;
-            z-index: 1000;
+            z-index: 2000;
             flex-direction: column;
         }
         .player-container.active { display: flex; }
         .player-header {
             padding: 12px 16px;
-            background: #111;
+            background: rgba(17,17,17,0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #222;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
             flex-shrink: 0;
         }
-        .player-header .title { 
-            font-size: 14px; 
+        .player-header .title {
+            font-size: 14px;
             font-weight: 600;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 70%;
+            max-width: 65%;
         }
         .close-btn {
             background: none;
@@ -173,6 +268,36 @@
             font-size: 24px;
             cursor: pointer;
             padding: 0 8px;
+            opacity: 0.7;
+        }
+        .close-btn:active { opacity: 1; }
+        .player-selector {
+            display: flex;
+            gap: 6px;
+            padding: 10px 16px;
+            background: rgba(17,17,17,0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+        .player-selector button {
+            padding: 6px 14px;
+            border: 2px solid rgba(255,255,255,0.08);
+            border-radius: 20px;
+            background: transparent;
+            color: #666;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .player-selector button:active { transform: scale(0.94); }
+        .player-selector button.active {
+            border-color: #e50914;
+            color: #fff;
+            background: rgba(229, 9, 20, 0.15);
         }
         .player-body {
             flex: 1;
@@ -190,90 +315,67 @@
         }
         .player-loading {
             position: absolute;
-            color: #666;
+            color: #555;
             font-size: 14px;
         }
-        .player-error {
-            position: absolute;
-            color: #ff4444;
-            font-size: 14px;
-            text-align: center;
-            padding: 20px;
-        }
-        /* ===== PLAYER SEÇİCİ ===== */
-        .player-selector {
-            display: flex;
-            gap: 8px;
-            padding: 10px 16px;
-            background: #111;
-            border-bottom: 1px solid #222;
-            flex-wrap: wrap;
-            flex-shrink: 0;
-        }
-        .player-selector button {
-            padding: 6px 14px;
-            border: 2px solid #333;
-            border-radius: 20px;
-            background: transparent;
-            color: #888;
-            font-size: 11px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: 500;
-        }
-        .player-selector button.active {
-            border-color: #e50914;
-            color: #fff;
-            background: rgba(229, 9, 20, 0.2);
-        }
-        .player-selector button:active { transform: scale(0.95); }
+
+        /* ===== RESPONSIVE ===== */
         @media (min-width: 600px) {
+            .slider-item { flex: 0 0 180px; }
+            .slider-item img { height: 250px; }
             .results { grid-template-columns: repeat(3, 1fr); }
-            .detail-poster { max-height: 400px; }
+            .movie-card img { height: 240px; }
+            .detail-poster { max-height: 450px; }
         }
         @media (max-width: 400px) {
-            .results { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-            .movie-card img { height: 140px; }
-        }
-        /* ===== Sonuç sayısı ===== */
-        .result-count {
-            color: #666;
-            font-size: 12px;
-            padding: 0 16px 8px 16px;
+            .slider-item { flex: 0 0 110px; }
+            .slider-item img { height: 150px; }
+            .results { gap: 8px; }
+            .movie-card img { height: 150px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- HEADER -->
+    <!-- ===== HEADER ===== -->
     <div class="header">
         <h1>🎬 FilmBot</h1>
         <span>📱 Mini App</span>
     </div>
 
-    <!-- ARAMA -->
+    <!-- ===== SEARCH ===== -->
     <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Film veya dizi ara..." autofocus>
+        <input type="text" id="searchInput" placeholder="Film, dizi veya anime ara..." autofocus>
     </div>
 
-    <!-- SONUÇLAR -->
+    <!-- ===== ANA SAYFA (POPÜLER) ===== -->
+    <div id="homePage">
+        <div class="section-title">🔥 <span>Popüler</span> Filmler</div>
+        <div class="slider-container"><div class="slider" id="popularMovies"></div></div>
+
+        <div class="section-title">📺 <span>Popüler</span> Diziler</div>
+        <div class="slider-container"><div class="slider" id="popularTv"></div></div>
+
+        <div class="section-title">🎌 <span>Popüler</span> Animeler</div>
+        <div class="slider-container"><div class="slider" id="popularAnime"></div></div>
+    </div>
+
+    <!-- ===== SONUÇLAR ===== -->
     <div id="resultCount" class="result-count"></div>
-    <div class="results" id="results">
-        <div class="no-results">🔍 Film veya dizi aramak için yazın</div>
-    </div>
+    <div class="results" id="results"></div>
 
-    <!-- DETAY SAYFASI -->
+    <!-- ===== DETAY ===== -->
     <div class="detail-page" id="detailPage">
-        <button class="back-btn" id="backBtn">⬅️ Geri</button>
+        <button class="back-btn" id="backBtn">← Geri</button>
         <img class="detail-poster" id="detailPoster" src="" alt="">
         <div class="detail-title" id="detailTitle">-</div>
         <div class="detail-meta" id="detailMeta">-</div>
         <div class="detail-genres" id="detailGenres">-</div>
         <div class="detail-overview" id="detailOverview">-</div>
-        <button class="watch-btn" id="watchBtn">▶️ İZLE</button>
+        <button class="watch-btn" id="watchBtn">▶ İZLE</button>
     </div>
 
-    <!-- PLAYER -->
+    <!-- ===== PLAYER ===== -->
     <div class="player-container" id="playerContainer">
         <div class="player-header">
             <span class="title" id="playerTitle">Yükleniyor...</span>
@@ -288,39 +390,23 @@
         </div>
         <div class="player-body">
             <div class="player-loading" id="playerLoading">⏳ Yükleniyor...</div>
-            <div class="player-error" id="playerError" style="display:none;">❌ Bu player çalışmıyor, başka birini dene</div>
             <iframe id="playerIframe" allowfullscreen></iframe>
         </div>
     </div>
 
     <script>
-        // ===== KONFIG =====
+        // ===== TMDB KONFIG =====
         const TMDB_API_KEY = 'af02b5703f3d2d7949f9b1a5fdb4d2a7';
         const TMDB_IMAGE_URL = 'https://image.tmdb.org/t/p/w500';
         const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
         // ===== PLAYER LİSTESİ =====
         const PLAYERS = {
-            vidsrc: {
-                name: 'VidSrc',
-                url: (type, id) => `https://vidsrc.to/embed/${type}/${id}`
-            },
-            '2embed': {
-                name: '2Embed',
-                url: (type, id) => `https://www.2embed.to/embed/tmdb/${type}/${id}`
-            },
-            multiembed: {
-                name: 'MultiEmbed',
-                url: (type, id) => `https://multiembed.mov/?video_id=${id}`
-            },
-            embedplus: {
-                name: 'EmbedPlus',
-                url: (type, id) => `https://www.embedplus.com/embed.php?id=${id}`
-            },
-            gogo: {
-                name: 'Gogo',
-                url: (type, id) => `https://gogoanime.ee/embed/${type}?id=${id}`
-            }
+            vidsrc: { name: 'VidSrc', url: (type, id) => `https://vidsrc.to/embed/${type}/${id}` },
+            '2embed': { name: '2Embed', url: (type, id) => `https://www.2embed.to/embed/tmdb/${type}/${id}` },
+            multiembed: { name: 'MultiEmbed', url: (type, id) => `https://multiembed.mov/?video_id=${id}` },
+            embedplus: { name: 'EmbedPlus', url: (type, id) => `https://www.embedplus.com/embed.php?id=${id}` },
+            gogo: { name: 'Gogo', url: (type, id) => `https://gogoanime.ee/embed/${type}?id=${id}` }
         };
 
         // ===== STATE =====
@@ -333,6 +419,7 @@
         const searchInput = document.getElementById('searchInput');
         const resultsDiv = document.getElementById('results');
         const resultCount = document.getElementById('resultCount');
+        const homePage = document.getElementById('homePage');
         const detailPage = document.getElementById('detailPage');
         const detailPoster = document.getElementById('detailPoster');
         const detailTitle = document.getElementById('detailTitle');
@@ -346,10 +433,9 @@
         const playerTitle = document.getElementById('playerTitle');
         const closePlayer = document.getElementById('closePlayer');
         const playerLoading = document.getElementById('playerLoading');
-        const playerError = document.getElementById('playerError');
         const playerSelector = document.getElementById('playerSelector');
 
-        // ===== TMDB API =====
+        // ===== API =====
         async function tmdbRequest(endpoint, params = {}) {
             params.api_key = TMDB_API_KEY;
             params.language = 'tr-TR';
@@ -360,20 +446,29 @@
             } catch { return null; }
         }
 
+        async function getPopularMovies() {
+            const data = await tmdbRequest('movie/popular');
+            return data?.results || [];
+        }
+
+        async function getPopularTv() {
+            const data = await tmdbRequest('tv/popular');
+            return data?.results || [];
+        }
+
+        async function getPopularAnime() {
+            const data = await tmdbRequest('discover/tv', { with_genres: '16', sort_by: 'popularity.desc' });
+            return data?.results || [];
+        }
+
         async function searchMulti(query) {
             const [movies, tv] = await Promise.all([
                 tmdbRequest('search/movie', { query }),
                 tmdbRequest('search/tv', { query })
             ]);
             const all = [];
-            if (movies?.results) {
-                movies.results.forEach(r => { r._type = 'movie'; });
-                all.push(...movies.results);
-            }
-            if (tv?.results) {
-                tv.results.forEach(r => { r._type = 'tv'; });
-                all.push(...tv.results);
-            }
+            if (movies?.results) { movies.results.forEach(r => { r._type = 'movie'; }); all.push(...movies.results); }
+            if (tv?.results) { tv.results.forEach(r => { r._type = 'tv'; }); all.push(...tv.results); }
             all.sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0));
             return all;
         }
@@ -382,15 +477,42 @@
             return await tmdbRequest(`${type}/${id}`);
         }
 
-        // ===== UI =====
+        // ===== SLIDER RENDER =====
+        function renderSlider(containerId, items, type) {
+            const container = document.getElementById(containerId);
+            if (!items || items.length === 0) {
+                container.innerHTML = '<div style="color:#444;padding:10px;">⚠️ Veri yok</div>';
+                return;
+            }
+            let html = '';
+            items.slice(0, 15).forEach(item => {
+                const title = type === 'movie' ? item.title : item.name;
+                const year = type === 'movie' ? (item.release_date || '').slice(0,4) : (item.first_air_date || '').slice(0,4);
+                const poster = item.poster_path ? `${TMDB_IMAGE_URL}${item.poster_path}` : '';
+                const rating = item.vote_average ? item.vote_average.toFixed(1) : '?';
+                const id = item.id;
+                const itemType = type === 'anime' ? 'tv' : type;
+                html += `
+                    <div class="slider-item" onclick="openDetail(${id}, '${itemType}')">
+                        ${poster ? `<img src="${poster}" alt="${title}" loading="lazy" onerror="this.style.display='none'">` : `<div style="height:180px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#444;">${type === 'movie' ? '🎬' : '📺'}</div>`}
+                        <div class="info">
+                            <div class="title">${title}</div>
+                            <div class="year">${year} ⭐ ${rating}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // ===== SONUÇ GÖSTER =====
         function showResults(items) {
+            homePage.style.display = 'none';
             resultCount.textContent = items.length > 0 ? `${items.length} sonuç bulundu` : '';
-            
             if (items.length === 0) {
                 resultsDiv.innerHTML = `<div class="no-results">❌ Sonuç bulunamadı</div>`;
                 return;
             }
-
             let html = '';
             items.slice(0, 30).forEach(item => {
                 const title = item._type === 'movie' ? item.title : item.name;
@@ -398,10 +520,9 @@
                 const poster = item.poster_path ? `${TMDB_IMAGE_URL}${item.poster_path}` : '';
                 const rating = item.vote_average ? item.vote_average.toFixed(1) : '?';
                 const typeIcon = item._type === 'movie' ? '🎬' : '📺';
-
                 html += `
                     <div class="movie-card" onclick="openDetail(${item.id}, '${item._type}')">
-                        ${poster ? `<img src="${poster}" alt="${title}" loading="lazy" onerror="this.style.display='none'">` : `<div style="height:180px;background:#222;display:flex;align-items:center;justify-content:center;color:#666;">${typeIcon}</div>`}
+                        ${poster ? `<img src="${poster}" alt="${title}" loading="lazy" onerror="this.style.display='none'">` : `<div style="height:180px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#444;">${typeIcon}</div>`}
                         <div class="info">
                             <div class="title">${title}</div>
                             <div class="year">${year} ⭐ ${rating}</div>
@@ -413,10 +534,10 @@
             detailPage.classList.remove('active');
         }
 
+        // ===== DETAY =====
         async function openDetail(id, type) {
             currentMovieId = id;
             currentType = type;
-
             const details = await getDetails(type, id);
             if (!details) return;
 
@@ -426,7 +547,6 @@
             const poster = details.poster_path ? `${TMDB_IMAGE_URL}${details.poster_path}` : '';
             const rating = details.vote_average ? details.vote_average.toFixed(1) : '?';
             const genres = details.genres ? details.genres.map(g => g.name).join(', ') : '';
-
             currentTitle = title;
 
             detailPoster.src = poster || '';
@@ -437,6 +557,7 @@
             detailOverview.textContent = overview;
 
             resultsDiv.innerHTML = '';
+            homePage.style.display = 'none';
             detailPage.classList.add('active');
             window.scrollTo(0, 0);
         }
@@ -452,40 +573,25 @@
             currentType = type;
             currentMovieId = id;
             currentTitle = title;
-
-            playerTitle.textContent = `▶️ ${title}`;
+            playerTitle.textContent = `▶ ${title}`;
             playerContainer.classList.add('active');
             document.body.style.overflow = 'hidden';
-
-            // İlk player'ı yükle
             loadPlayer(currentPlayer);
         }
 
         function loadPlayer(playerKey) {
             const url = getPlayerUrl(currentType, currentMovieId, playerKey);
             if (!url) return;
-
             currentPlayer = playerKey;
-
-            // Butonları güncelle
             document.querySelectorAll('.player-selector button').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.player === playerKey);
             });
-
             playerLoading.style.display = 'block';
-            playerError.style.display = 'none';
             playerIframe.src = '';
-
-            // Timeout ile yükle
             setTimeout(() => {
                 playerIframe.src = url;
                 playerLoading.style.display = 'none';
             }, 300);
-
-            // Hata kontrolü
-            setTimeout(() => {
-                // Iframe yüklenmediyse hata göster
-            }, 8000);
         }
 
         function closePlayerFunc() {
@@ -494,13 +600,14 @@
             document.body.style.overflow = '';
         }
 
-        // ===== EVENT LISTENER'LAR =====
+        // ===== EVENT =====
         let searchTimeout;
         searchInput.addEventListener('input', () => {
             clearTimeout(searchTimeout);
             const query = searchInput.value.trim();
             if (query.length < 2) {
-                resultsDiv.innerHTML = '<div class="no-results">🔍 En az 2 karakter girin</div>';
+                homePage.style.display = 'block';
+                resultsDiv.innerHTML = '';
                 resultCount.textContent = '';
                 return;
             }
@@ -527,8 +634,10 @@
 
         backBtn.addEventListener('click', () => {
             detailPage.classList.remove('active');
-            resultsDiv.innerHTML = '<div class="no-results">🔍 Film veya dizi aramak için yazın</div>';
+            homePage.style.display = 'block';
+            resultsDiv.innerHTML = '';
             resultCount.textContent = '';
+            window.scrollTo(0, 0);
         });
 
         watchBtn.addEventListener('click', () => {
@@ -538,12 +647,8 @@
         });
 
         closePlayer.addEventListener('click', closePlayerFunc);
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePlayerFunc(); });
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closePlayerFunc();
-        });
-
-        // Player selector
         playerSelector.addEventListener('click', (e) => {
             const btn = e.target.closest('button');
             if (!btn) return;
@@ -554,8 +659,18 @@
         });
 
         // ===== BAŞLAT =====
+        async function init() {
+            const [movies, tv, anime] = await Promise.all([
+                getPopularMovies(),
+                getPopularTv(),
+                getPopularAnime()
+            ]);
+            renderSlider('popularMovies', movies, 'movie');
+            renderSlider('popularTv', tv, 'tv');
+            renderSlider('popularAnime', anime, 'anime');
+        }
+        init();
         console.log('🎬 FilmBot Mini App yüklendi!');
-        console.log('📺 Playerlar:', Object.keys(PLAYERS).join(', '));
     </script>
 </body>
 </html>
