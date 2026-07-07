@@ -5,14 +5,354 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>🎬 FilmBot</title>
     <style>
-        /* ... CSS AYNI ... */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0a;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #fff;
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #e50914; border-radius: 4px; }
+
+        .header {
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            padding: 14px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #e50914, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header span { font-size: 11px; color: #555; }
+
+        .search-box {
+            padding: 12px 16px;
+            background: rgba(17, 17, 17, 0.95);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 60px;
+            z-index: 99;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 12px 18px;
+            border: 2px solid rgba(255,255,255,0.08);
+            border-radius: 25px;
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        .search-box input:focus { border-color: #e50914; background: rgba(255,255,255,0.08); }
+        .search-box input::placeholder { color: #555; }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            padding: 16px 16px 8px 16px;
+        }
+        .section-title span { color: #e50914; }
+
+        .slider-container { padding: 0 16px; margin-bottom: 12px; }
+        .slider {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding: 8px 0 16px 0;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .slider::-webkit-scrollbar { display: none; }
+        .slider-item {
+            flex: 0 0 130px;
+            scroll-snap-align: start;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #141414;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+        .slider-item:active { transform: scale(0.94); }
+        .slider-item img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
+        }
+        .slider-item .info { padding: 8px 10px; }
+        .slider-item .title {
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .slider-item .year { font-size: 10px; color: #666; }
+        .slider-item .rating { font-size: 10px; color: #f5c518; }
+
+        .results {
+            padding: 8px 16px 20px 16px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .movie-card {
+            background: #141414;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+        .movie-card:active { transform: scale(0.94); }
+        .movie-card img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            background: #1a1a1a;
+        }
+        .movie-card .info { padding: 8px 10px; }
+        .movie-card .title {
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .movie-card .year { font-size: 11px; color: #666; }
+        .movie-card .rating { font-size: 11px; color: #f5c518; }
+        .no-results {
+            text-align: center;
+            color: #555;
+            padding: 40px 20px;
+            grid-column: 1 / -1;
+        }
+        .result-count {
+            color: #555;
+            font-size: 12px;
+            padding: 0 16px 4px 16px;
+        }
+
+        .detail-page {
+            display: none;
+            padding: 16px 16px 30px 16px;
+            animation: fadeIn 0.3s;
+        }
+        .detail-page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .detail-poster {
+            width: 100%;
+            max-height: 320px;
+            object-fit: cover;
+            border-radius: 16px;
+            margin-bottom: 14px;
+            background: #1a1a1a;
+        }
+        .detail-title { font-size: 24px; font-weight: 700; }
+        .detail-meta { color: #888; font-size: 14px; margin-top: 4px; }
+        .detail-overview { color: #aaa; font-size: 14px; margin-top: 10px; line-height: 1.6; }
+        .detail-genres { color: #666; font-size: 13px; margin-top: 6px; }
+        .back-btn {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-bottom: 14px;
+            transition: background 0.2s;
+        }
+        .back-btn:active { background: rgba(255,255,255,0.12); }
+        .watch-btn {
+            background: linear-gradient(135deg, #e50914, #c40812);
+            border: none;
+            color: #fff;
+            padding: 14px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 14px;
+            width: 100%;
+            transition: opacity 0.2s;
+        }
+        .watch-btn:active { opacity: 0.7; }
+
+        /* ===== PLAYER (MOBİL UYUMLU) ===== */
+        .player-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            z-index: 2000;
+            flex-direction: column;
+        }
+        .player-container.active { display: flex; }
+        .player-header {
+            padding: 12px 16px;
+            background: rgba(17,17,17,0.95);
+            backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            flex-shrink: 0;
+        }
+        .player-header .title {
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 65%;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0 8px;
+            opacity: 0.7;
+        }
+        .close-btn:active { opacity: 1; }
+        .player-selector {
+            display: flex;
+            gap: 6px;
+            padding: 10px 16px;
+            background: rgba(17,17,17,0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            flex-wrap: wrap;
+            flex-shrink: 0;
+        }
+        .player-selector button {
+            padding: 6px 14px;
+            border: 2px solid rgba(255,255,255,0.08);
+            border-radius: 20px;
+            background: transparent;
+            color: #666;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .player-selector button:active { transform: scale(0.94); }
+        .player-selector button.active {
+            border-color: #e50914;
+            color: #fff;
+            background: rgba(229, 9, 20, 0.15);
+        }
+        .player-body {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            position: relative;
+        }
+        .player-body iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #000;
+        }
+        .player-loading {
+            position: absolute;
+            color: #555;
+            font-size: 14px;
+        }
+        .player-error {
+            position: absolute;
+            color: #ff4444;
+            font-size: 13px;
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+
+        @media (min-width: 600px) {
+            .slider-item { flex: 0 0 180px; }
+            .slider-item img { height: 250px; }
+            .results { grid-template-columns: repeat(3, 1fr); }
+            .movie-card img { height: 240px; }
+            .detail-poster { max-height: 450px; }
+        }
+        @media (max-width: 400px) {
+            .slider-item { flex: 0 0 110px; }
+            .slider-item img { height: 150px; }
+            .results { gap: 8px; }
+            .movie-card img { height: 150px; }
+        }
     </style>
 </head>
 <body>
 
-    <!-- ... HTML AYNI ... -->
+    <!-- HEADER -->
+    <div class="header">
+        <h1>🎬 FilmBot</h1>
+        <span>📱 Mini App</span>
+    </div>
 
-    <!-- PLAYER (GÜNCEL) -->
+    <!-- SEARCH -->
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Film, dizi veya anime ara..." autofocus>
+    </div>
+
+    <!-- HOME -->
+    <div id="homePage">
+        <div class="section-title">🔥 <span>Popüler</span> Filmler</div>
+        <div class="slider-container">
+            <div class="slider" id="popularMovies"><div class="no-results" style="padding:10px;">⏳ Yükleniyor...</div></div>
+        </div>
+
+        <div class="section-title">📺 <span>Popüler</span> Diziler</div>
+        <div class="slider-container">
+            <div class="slider" id="popularTv"><div class="no-results" style="padding:10px;">⏳ Yükleniyor...</div></div>
+        </div>
+
+        <div class="section-title">🎌 <span>Popüler</span> Animeler</div>
+        <div class="slider-container">
+            <div class="slider" id="popularAnime"><div class="no-results" style="padding:10px;">⏳ Yükleniyor...</div></div>
+        </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div id="resultCount" class="result-count"></div>
+    <div class="results" id="results"></div>
+
+    <!-- DETAIL -->
+    <div class="detail-page" id="detailPage">
+        <button class="back-btn" id="backBtn">← Geri</button>
+        <img class="detail-poster" id="detailPoster" src="" alt="">
+        <div class="detail-title" id="detailTitle">-</div>
+        <div class="detail-meta" id="detailMeta">-</div>
+        <div class="detail-genres" id="detailGenres">-</div>
+        <div class="detail-overview" id="detailOverview">-</div>
+        <button class="watch-btn" id="watchBtn">▶ İZLE</button>
+    </div>
+
+    <!-- PLAYER -->
     <div class="player-container" id="playerContainer">
         <div class="player-header">
             <span class="title" id="playerTitle">Yükleniyor...</span>
@@ -24,16 +364,9 @@
             <button data-player="vidsrc">VidSrc</button>
         </div>
         <div class="player-body">
-            <div class="player-loading" id="playerLoading">
-                <div class="spinner"></div>
-                <span>⏳ Yükleniyor...</span>
-            </div>
-            <iframe 
-                id="playerIframe" 
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups-to-escape-sandbox"
-                allow="autoplay; fullscreen; encrypted-media"
-                allowfullscreen
-            ></iframe>
+            <div class="player-loading" id="playerLoading">⏳ Yükleniyor...</div>
+            <div class="player-error" id="playerError">❌ Bu player çalışmıyor, başka birini dene</div>
+            <iframe id="playerIframe" allowfullscreen></iframe>
         </div>
     </div>
 
@@ -43,61 +376,28 @@
         const TMDB_IMAGE_URL = 'https://image.tmdb.org/t/p/w500';
         const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
-        // ===== REKLAMSIZ PLAYER =====
+        // ===== MOBİL UYUMLU PLAYER =====
         const PLAYERS = {
-            '2embed': { 
-                name: '2Embed', 
+            '2embed': {
+                name: '2Embed',
                 url: (type, id) => `https://www.2embed.to/embed/tmdb/${type}/${id}`
             },
-            'multiembed': { 
-                name: 'MultiEmbed', 
+            'multiembed': {
+                name: 'MultiEmbed',
                 url: (type, id) => `https://multiembed.mov/directstream.php?video_id=${id}`
             },
-            'vidsrc': { 
-                name: 'VidSrc', 
+            'vidsrc': {
+                name: 'VidSrc',
                 url: (type, id) => `https://vidsrc.in/embed/${type}/${id}`
             }
         };
-
-        // ===== REKLAM ENGELLEYİCİ =====
-        const BLOCKED_DOMAINS = ['b7510.com', 'go.affiliate', 'reklam', 'ad.', 'doubleclick', 'googlead'];
-
-        function blockAds() {
-            // Tüm bağlantıları kontrol et
-            document.addEventListener('click', function(e) {
-                let target = e.target;
-                while (target) {
-                    if (target.tagName === 'A' && target.href) {
-                        for (let domain of BLOCKED_DOMAINS) {
-                            if (target.href.includes(domain)) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                console.log('🚫 Reklam engellendi:', target.href);
-                                return false;
-                            }
-                        }
-                    }
-                    target = target.parentElement;
-                }
-            }, true);
-
-            // Pop-up'ları engelle
-            window.open = function(url) {
-                for (let domain of BLOCKED_DOMAINS) {
-                    if (url && url.includes(domain)) {
-                        console.log('🚫 Pop-up engellendi:', url);
-                        return null;
-                    }
-                }
-                return window.open.apply(window, arguments);
-            };
-        }
 
         // ===== STATE =====
         let currentMovieId = null;
         let currentType = 'movie';
         let currentTitle = '';
         let currentPlayer = '2embed';
+        let playerAttempts = {};
 
         // ===== DOM =====
         const searchInput = document.getElementById('searchInput');
@@ -117,6 +417,7 @@
         const playerTitle = document.getElementById('playerTitle');
         const closePlayer = document.getElementById('closePlayer');
         const playerLoading = document.getElementById('playerLoading');
+        const playerError = document.getElementById('playerError');
         const playerSelector = document.getElementById('playerSelector');
 
         // ===== API =====
@@ -176,11 +477,9 @@
                 const rating = item.vote_average ? item.vote_average.toFixed(1) : '?';
                 const id = item.id;
                 const itemType = type === 'anime' ? 'tv' : type;
-                const badge = type === 'movie' ? '🎬' : type === 'anime' ? '🎌' : '📺';
                 html += `
                     <div class="slider-item" onclick="openDetail(${id}, '${itemType}')">
-                        ${poster ? `<img src="${poster}" alt="${title}" loading="lazy" onerror="this.style.display='none'">` : `<div style="height:190px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#444;">${badge}</div>`}
-                        <div class="badge">${badge}</div>
+                        ${poster ? `<img src="${poster}" alt="${title}" loading="lazy" onerror="this.style.display='none'">` : `<div style="height:180px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#444;">${type === 'movie' ? '🎬' : '📺'}</div>`}
                         <div class="info">
                             <div class="title">${title}</div>
                             <div class="year">${year} ⭐ ${rating}</div>
@@ -204,11 +503,10 @@
                 const year = item._type === 'movie' ? (item.release_date || '').slice(0,4) : (item.first_air_date || '').slice(0,4);
                 const poster = item.poster_path ? `${TMDB_IMAGE_URL}${item.poster_path}` : '';
                 const rating = item.vote_average ? item.vote_average.toFixed(1) : '?';
-                const badge = item._type === 'movie' ? '🎬' : '📺';
+                const typeIcon = item._type === 'movie' ? '🎬' : '📺';
                 html += `
                     <div class="movie-card" onclick="openDetail(${item.id}, '${item._type}')">
-                        ${poster ? `<img src="${poster}" alt="${title}" loading="lazy" onerror="this.style.display='none'">` : `<div style="height:190px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#444;">${badge}</div>`}
-                        <div class="badge">${badge}</div>
+                        ${poster ? `<img src="${poster}" alt="${title}" loading="lazy" onerror="this.style.display='none'">` : `<div style="height:180px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#444;">${typeIcon}</div>`}
                         <div class="info">
                             <div class="title">${title}</div>
                             <div class="year">${year} ⭐ ${rating}</div>
@@ -262,21 +560,37 @@
             playerTitle.textContent = `▶ ${title}`;
             playerContainer.classList.add('active');
             document.body.style.overflow = 'hidden';
+            playerAttempts = {};
             loadPlayer(currentPlayer);
         }
 
         function loadPlayer(playerKey) {
             const url = getPlayerUrl(currentType, currentMovieId, playerKey);
             if (!url) return;
+
             currentPlayer = playerKey;
             document.querySelectorAll('.player-selector button').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.player === playerKey);
             });
-            playerLoading.style.display = 'flex';
+
+            playerLoading.style.display = 'block';
+            playerError.style.display = 'none';
             playerIframe.src = '';
+
             setTimeout(() => {
                 playerIframe.src = url;
                 playerLoading.style.display = 'none';
+
+                // Player yüklenmezse hata göster
+                setTimeout(() => {
+                    try {
+                        if (!playerIframe.contentDocument || !playerIframe.contentDocument.body.innerHTML) {
+                            playerError.style.display = 'block';
+                        }
+                    } catch (e) {
+                        playerError.style.display = 'block';
+                    }
+                }, 5000);
             }, 500);
         }
 
@@ -344,9 +658,6 @@
             }
         });
 
-        // ===== REKLAM ENGELLEYİCİYİ BAŞLAT =====
-        blockAds();
-
         // ===== INIT =====
         async function init() {
             try {
@@ -363,7 +674,7 @@
             }
         }
         init();
-        console.log('🎬 FilmBot yüklendi! Reklam engelleyici aktif.');
+        console.log('🎬 FilmBot yüklendi!');
     </script>
 </body>
 </html>
