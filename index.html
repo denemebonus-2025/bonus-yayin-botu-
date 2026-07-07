@@ -1,337 +1,417 @@
-import os
-import requests
-import json
-import random
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-
-# ============= KONFIGÜRASYON =============
-TOKEN = "7873180369:AAHtLHE0_Hju1BRd35-VAj5jhxo9Vdeh5x8"
-
-# ============= TMDB API =============
-TMDB_API_KEY = "af02b5703f3d2d7949f9b1a5fdb4d2a7"
-TMDB_BASE_URL = "https://api.themoviedb.org/3"
-TMDB_IMAGE_URL = "https://image.tmdb.org/t/p/w500"
-
-# ============= API FONKSİYONLARI =============
-def tmdb_istegi(endpoint, params=None):
-    if params is None:
-        params = {}
-    params["api_key"] = TMDB_API_KEY
-    params["language"] = "tr-TR"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🎬 Film İzle</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0a;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            color: #fff;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid #333;
+        }
+        .header h1 { font-size: 20px; color: #e50914; }
+        .search-box {
+            padding: 15px 20px;
+            background: #111;
+            position: sticky;
+            top: 60px;
+            z-index: 99;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #333;
+            border-radius: 25px;
+            background: #1a1a1a;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+            transition: border 0.3s;
+        }
+        .search-box input:focus { border-color: #e50914; }
+        .search-box input::placeholder { color: #666; }
+        .results {
+            padding: 15px 20px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        .movie-card {
+            background: #1a1a1a;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid #222;
+        }
+        .movie-card:active { transform: scale(0.96); }
+        .movie-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #222;
+        }
+        .movie-card .info {
+            padding: 10px 12px;
+        }
+        .movie-card .title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .movie-card .year {
+            font-size: 12px;
+            color: #888;
+        }
+        .movie-card .rating {
+            font-size: 12px;
+            color: #f5c518;
+        }
+        .player-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            z-index: 1000;
+            flex-direction: column;
+        }
+        .player-container.active { display: flex; }
+        .player-header {
+            padding: 12px 16px;
+            background: #111;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #222;
+            flex-shrink: 0;
+        }
+        .player-header .title { font-size: 16px; font-weight: 600; }
+        .close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0 8px;
+        }
+        .player-body {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            position: relative;
+        }
+        .player-body iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #000;
+        }
+        .loading {
+            position: absolute;
+            color: #888;
+            font-size: 14px;
+        }
+        .back-btn {
+            background: #e50914;
+            border: none;
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .movie-detail {
+            padding: 15px 20px;
+            background: #111;
+            border-bottom: 1px solid #222;
+        }
+        .movie-detail .title { font-size: 22px; font-weight: 700; }
+        .movie-detail .meta { color: #888; font-size: 14px; margin-top: 4px; }
+        .movie-detail .overview { color: #aaa; font-size: 14px; margin-top: 8px; line-height: 1.5; }
+        .watch-btn {
+            background: #e50914;
+            border: none;
+            color: #fff;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+            width: 100%;
+            transition: opacity 0.2s;
+        }
+        .watch-btn:active { opacity: 0.7; }
+        .no-results {
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+            grid-column: 1 / -1;
+        }
+        @media (min-width: 600px) {
+            .results { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎬 FilmBot</h1>
+    </div>
     
-    try:
-        response = requests.get(f"{TMDB_BASE_URL}/{endpoint}", params=params, timeout=10)
-        if response.status_code == 200:
-            return response.json()
-        return None
-    except:
-        return None
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Film veya dizi ara..." autofocus>
+    </div>
+    
+    <div class="results" id="results">
+        <div class="no-results">🔍 Film veya dizi aramak için yazın</div>
+    </div>
+    
+    <!-- Player -->
+    <div class="player-container" id="playerContainer">
+        <div class="player-header">
+            <span class="title" id="playerTitle">Yükleniyor...</span>
+            <button class="close-btn" id="closePlayer">✕</button>
+        </div>
+        <div class="player-body">
+            <div class="loading">⏳ Yükleniyor...</div>
+            <iframe id="playerIframe" allowfullscreen></iframe>
+        </div>
+    </div>
 
-def film_ara(query):
-    return tmdb_istegi("search/movie", {"query": query})
-
-def dizi_ara(query):
-    return tmdb_istegi("search/tv", {"query": query})
-
-def populer_filmler():
-    return tmdb_istegi("movie/popular")
-
-def populer_diziler():
-    return tmdb_istegi("tv/popular")
-
-def film_detay(film_id):
-    return tmdb_istegi(f"movie/{film_id}")
-
-def dizi_detay(dizi_id):
-    return tmdb_istegi(f"tv/{dizi_id}")
-
-# ============= TELEGRAM BOT =============
-class FilmBot:
-    async def start(self, update: Update, context):
-        await update.message.reply_text(
-            "🎬 HOŞ GELDIN!\n\n"
-            "📽️ /film <isim> - Film ara\n"
-            "📺 /dizi <isim> - Dizi ara\n"
-            "🔥 /populer - Populer filmler\n"
-            "📈 /populer_dizi - Populer diziler\n"
-            "🎲 /rastgele - Rastgele film oner\n"
-            "ℹ️ /yardim - Yardim\n\n"
-            "Ornek: /film Inception"
-        )
-
-    async def yardim(self, update: Update, context):
-        await update.message.reply_text(
-            "📖 KOMUTLAR:\n\n"
-            "/film <isim> - Film ara\n"
-            "/dizi <isim> - Dizi ara\n"
-            "/populer - Populer filmler\n"
-            "/populer_dizi - Populer diziler\n"
-            "/rastgele - Rastgele film oner\n"
-            "/yardim - Bu menü\n\n"
-            "Ornekler:\n"
-            "/film Inception\n"
-            "/dizi Breaking Bad"
-        )
-
-    async def rastgele_film(self, update: Update, context):
-        await update.message.reply_text("🎲 Rastgele film seciliyor...")
+    <script>
+        const TMDB_API_KEY = 'af02b5703f3d2d7949f9b1a5fdb4d2a7';
+        const TMDB_IMAGE_URL = 'https://image.tmdb.org/t/p/w500';
+        const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
         
-        data = populer_filmler()
-        if not data or not data.get("results"):
-            await update.message.reply_text("❌ Film bulunamadi.")
-            return
+        let currentMovieId = null;
+        let currentType = 'movie';
         
-        film = random.choice(data["results"])
-        await self.film_goster(update, film)
-
-    async def film_ara_komut(self, update: Update, context):
-        if not context.args:
-            await update.message.reply_text("❌ Lutfen bir film adi gir!\nOrnek: /film Inception")
-            return
+        const searchInput = document.getElementById('searchInput');
+        const resultsDiv = document.getElementById('results');
+        const playerContainer = document.getElementById('playerContainer');
+        const playerIframe = document.getElementById('playerIframe');
+        const playerTitle = document.getElementById('playerTitle');
+        const closePlayer = document.getElementById('closePlayer');
         
-        query = " ".join(context.args)
-        await update.message.reply_text(f"🔍 '{query}' araniyor...")
+        // ===== TMDB API =====
+        async function tmdbRequest(endpoint, params = {}) {
+            params.api_key = TMDB_API_KEY;
+            params.language = 'tr-TR';
+            const url = `${TMDB_BASE_URL}/${endpoint}?${new URLSearchParams(params)}`;
+            try {
+                const res = await fetch(url);
+                return await res.json();
+            } catch {
+                return null;
+            }
+        }
         
-        data = film_ara(query)
-        if not data or not data.get("results"):
-            await update.message.reply_text(f"❌ '{query}' bulunamadi.")
-            return
+        async function searchMovies(query) {
+            return await tmdbRequest('search/movie', { query });
+        }
         
-        results = data["results"][:5]
-        if len(results) == 1:
-            await self.film_goster(update, results[0])
-        else:
-            keyboard = []
-            for film in results:
-                title = film.get("title", "Bilinmeyen")[:30]
-                year = film.get("release_date", "")[:4]
-                keyboard.append([
-                    InlineKeyboardButton(f"🎬 {title} ({year})", callback_data=f"film_{film['id']}")
-                ])
+        async function searchTv(query) {
+            return await tmdbRequest('search/tv', { query });
+        }
+        
+        async function getMovieDetails(id) {
+            return await tmdbRequest(`movie/${id}`);
+        }
+        
+        async function getTvDetails(id) {
+            return await tmdbRequest(`tv/${id}`);
+        }
+        
+        // ===== Video Player URL'leri =====
+        function getPlayerUrl(type, id) {
+            // VidSrc (en iyi)
+            return `https://vidsrc.to/embed/${type}/${id}`;
             
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.message.reply_text(
-                f"🔍 '{query}' icin {len(results)} sonuc bulundu:\n\n"
-                "Bir film sec:",
-                reply_markup=reply_markup
-            )
-
-    async def dizi_ara_komut(self, update: Update, context):
-        if not context.args:
-            await update.message.reply_text("❌ Lutfen bir dizi adi gir!\nOrnek: /dizi Breaking Bad")
-            return
+            // Alternatifler:
+            // return `https://www.2embed.to/embed/tmdb/${type}/${id}`;
+            // return `https://multiembed.mov/?video_id=${id}`;
+        }
         
-        query = " ".join(context.args)
-        await update.message.reply_text(f"🔍 '{query}' araniyor...")
-        
-        data = dizi_ara(query)
-        if not data or not data.get("results"):
-            await update.message.reply_text(f"❌ '{query}' bulunamadi.")
-            return
-        
-        results = data["results"][:5]
-        if len(results) == 1:
-            await self.dizi_goster(update, results[0])
-        else:
-            keyboard = []
-            for dizi in results:
-                name = dizi.get("name", "Bilinmeyen")[:30]
-                year = dizi.get("first_air_date", "")[:4]
-                keyboard.append([
-                    InlineKeyboardButton(f"📺 {name} ({year})", callback_data=f"dizi_{dizi['id']}")
-                ])
+        // ===== UI İşlemleri =====
+        function showResults(data, type) {
+            if (!data || !data.results || data.results.length === 0) {
+                resultsDiv.innerHTML = `<div class="no-results">❌ Sonuç bulunamadı</div>`;
+                return;
+            }
             
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.message.reply_text(
-                f"🔍 '{query}' icin {len(results)} sonuc bulundu:\n\n"
-                "Bir dizi sec:",
-                reply_markup=reply_markup
-            )
-
-    async def populer_filmler_komut(self, update: Update, context):
-        await update.message.reply_text("🔥 Populer filmler getiriliyor...")
-        
-        data = populer_filmler()
-        if not data or not data.get("results"):
-            await update.message.reply_text("❌ Populer filmler bulunamadi.")
-            return
-        
-        keyboard = []
-        for film in data["results"][:10]:
-            title = film.get("title", "Bilinmeyen")[:25]
-            year = film.get("release_date", "")[:4]
-            rating = film.get("vote_average", 0)
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"🎬 {title} ({year}) ⭐{rating}", 
-                    callback_data=f"film_{film['id']}"
-                )
-            ])
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "🔥 En Populer Filmler:\n\n"
-            "Bir film sec, detaylarini gosterelim.",
-            reply_markup=reply_markup
-        )
-
-    async def populer_diziler_komut(self, update: Update, context):
-        await update.message.reply_text("📈 Populer diziler getiriliyor...")
-        
-        data = populer_diziler()
-        if not data or not data.get("results"):
-            await update.message.reply_text("❌ Populer diziler bulunamadi.")
-            return
-        
-        keyboard = []
-        for dizi in data["results"][:10]:
-            name = dizi.get("name", "Bilinmeyen")[:25]
-            year = dizi.get("first_air_date", "")[:4]
-            rating = dizi.get("vote_average", 0)
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"📺 {name} ({year}) ⭐{rating}", 
-                    callback_data=f"dizi_{dizi['id']}"
-                )
-            ])
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "📈 En Populer Diziler:\n\n"
-            "Bir dizi sec, detaylarini gosterelim.",
-            reply_markup=reply_markup
-        )
-
-    async def film_goster(self, update, film):
-        film_id = film["id"]
-        detay = film_detay(film_id)
-        
-        if not detay:
-            await update.message.reply_text("❌ Film detaylari alinamadi.")
-            return
-        
-        title = detay.get("title", "Bilinmeyen")
-        year = detay.get("release_date", "")[:4]
-        rating = detay.get("vote_average", 0)
-        vote_count = detay.get("vote_count", 0)
-        overview = detay.get("overview", "Aciklama yok.")
-        poster = detay.get("poster_path", "")
-        genres = ", ".join([g["name"] for g in detay.get("genres", [])])
-        runtime = detay.get("runtime", 0)
-        
-        mesaj = (
-            f"🎬 {title} ({year})\n"
-            f"Puan: {rating}/10 ({vote_count} oy)\n"
-            f"Tur: {genres}\n"
-            f"Sure: {runtime} dk\n\n"
-            f"{overview[:500]}..."
-        )
-        
-        if poster:
-            try:
-                poster_url = f"{TMDB_IMAGE_URL}{poster}"
-                keyboard = [
-                    [InlineKeyboardButton("🔍 IMDB'de Ara", url=f"https://www.imdb.com/find?q={title}")]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
+            let html = '';
+            data.results.slice(0, 20).forEach(item => {
+                const title = type === 'movie' ? item.title : item.name;
+                const year = type === 'movie' ? (item.release_date || '').slice(0,4) : (item.first_air_date || '').slice(0,4);
+                const poster = item.poster_path ? `${TMDB_IMAGE_URL}${item.poster_path}` : '';
+                const rating = item.vote_average ? item.vote_average.toFixed(1) : '?';
                 
-                await update.message.reply_photo(
-                    photo=poster_url,
-                    caption=mesaj,
-                    reply_markup=reply_markup
-                )
-            except:
-                await update.message.reply_text(mesaj)
-        else:
-            await update.message.reply_text(mesaj)
-
-    async def dizi_goster(self, update, dizi):
-        dizi_id = dizi["id"]
-        detay = dizi_detay(dizi_id)
+                html += `
+                    <div class="movie-card" onclick="openMovie(${item.id}, '${type}')">
+                        ${poster ? `<img src="${poster}" alt="${title}" loading="lazy">` : `<div style="height:200px;background:#222;display:flex;align-items:center;justify-content:center;color:#666;">📽️</div>`}
+                        <div class="info">
+                            <div class="title">${title}</div>
+                            <div class="year">${year} ⭐ ${rating}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            resultsDiv.innerHTML = html;
+        }
         
-        if not detay:
-            await update.message.reply_text("❌ Dizi detaylari alinamadi.")
-            return
+        async function openMovie(id, type) {
+            currentMovieId = id;
+            currentType = type;
+            
+            // Detayları getir
+            const details = type === 'movie' ? await getMovieDetails(id) : await getTvDetails(id);
+            if (!details) return;
+            
+            const title = type === 'movie' ? details.title : details.name;
+            const year = type === 'movie' ? (details.release_date || '').slice(0,4) : (details.first_air_date || '').slice(0,4);
+            const overview = details.overview || 'Açıklama yok.';
+            const poster = details.poster_path ? `${TMDB_IMAGE_URL}${details.poster_path}` : '';
+            const rating = details.vote_average ? details.vote_average.toFixed(1) : '?';
+            const genres = details.genres ? details.genres.map(g => g.name).join(', ') : '';
+            
+            // Detayları göster
+            const detailHtml = `
+                <div class="movie-detail">
+                    <div class="title">${title} (${year})</div>
+                    <div class="meta">⭐ ${rating}/10  |  ${genres}</div>
+                    <div class="overview">${overview.slice(0, 300)}${overview.length > 300 ? '...' : ''}</div>
+                    <button class="watch-btn" onclick="playMovie('${type}', ${id}, '${title}')">▶️ İZLE</button>
+                </div>
+            `;
+            
+            // Sonuçları detay ile göster
+            const oldResults = resultsDiv.innerHTML;
+            resultsDiv.innerHTML = detailHtml;
+            
+            // Geri butonu
+            const backBtn = document.createElement('button');
+            backBtn.className = 'back-btn';
+            backBtn.textContent = '⬅️ Geri';
+            backBtn.onclick = () => {
+                if (window.lastSearchQuery) {
+                    performSearch(window.lastSearchQuery);
+                } else {
+                    resultsDiv.innerHTML = `<div class="no-results">🔍 Film veya dizi aramak için yazın</div>`;
+                }
+            };
+            resultsDiv.appendChild(backBtn);
+        }
         
-        name = detay.get("name", "Bilinmeyen")
-        year = detay.get("first_air_date", "")[:4]
-        rating = detay.get("vote_average", 0)
-        vote_count = detay.get("vote_count", 0)
-        overview = detay.get("overview", "Aciklama yok.")
-        poster = detay.get("poster_path", "")
-        genres = ", ".join([g["name"] for g in detay.get("genres", [])])
-        seasons = detay.get("number_of_seasons", 0)
-        episodes = detay.get("number_of_episodes", 0)
-        status = detay.get("status", "Bilinmiyor")
+        function playMovie(type, id, title) {
+            const url = getPlayerUrl(type, id);
+            playerTitle.textContent = `▶️ ${title}`;
+            playerIframe.src = url;
+            playerContainer.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
         
-        mesaj = (
-            f"📺 {name} ({year})\n"
-            f"Puan: {rating}/10 ({vote_count} oy)\n"
-            f"Tur: {genres}\n"
-            f"Sezon: {seasons} | Bolum: {episodes}\n"
-            f"Durum: {status}\n\n"
-            f"{overview[:500]}..."
-        )
+        function closePlayerFunc() {
+            playerContainer.classList.remove('active');
+            playerIframe.src = '';
+            document.body.style.overflow = '';
+        }
         
-        if poster:
-            try:
-                poster_url = f"{TMDB_IMAGE_URL}{poster}"
-                keyboard = [
-                    [InlineKeyboardButton("🔍 IMDB'de Ara", url=f"https://www.imdb.com/find?q={name}")]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
+        async function performSearch(query) {
+            window.lastSearchQuery = query;
+            resultsDiv.innerHTML = '<div style="text-align:center;padding:40px;color:#666;">⏳ Aranıyor...</div>';
+            
+            const [movies, tv] = await Promise.all([
+                searchMovies(query),
+                searchTv(query)
+            ]);
+            
+            const allResults = [];
+            if (movies && movies.results) {
+                movies.results.forEach(r => { r._type = 'movie'; });
+                allResults.push(...movies.results);
+            }
+            if (tv && tv.results) {
+                tv.results.forEach(r => { r._type = 'tv'; });
+                allResults.push(...tv.results);
+            }
+            
+            if (allResults.length === 0) {
+                resultsDiv.innerHTML = '<div class="no-results">❌ Sonuç bulunamadı</div>';
+                return;
+            }
+            
+            // Sırala
+            allResults.sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0));
+            
+            let html = '';
+            allResults.slice(0, 20).forEach(item => {
+                const title = item._type === 'movie' ? item.title : item.name;
+                const year = item._type === 'movie' ? (item.release_date || '').slice(0,4) : (item.first_air_date || '').slice(0,4);
+                const poster = item.poster_path ? `${TMDB_IMAGE_URL}${item.poster_path}` : '';
+                const rating = item.vote_average ? item.vote_average.toFixed(1) : '?';
+                const typeLabel = item._type === 'movie' ? '🎬' : '📺';
                 
-                await update.message.reply_photo(
-                    photo=poster_url,
-                    caption=mesaj,
-                    reply_markup=reply_markup
-                )
-            except:
-                await update.message.reply_text(mesaj)
-        else:
-            await update.message.reply_text(mesaj)
-
-    async def button_handler(self, update: Update, context):
-        query = update.callback_query
-        await query.answer()
+                html += `
+                    <div class="movie-card" onclick="openMovie(${item.id}, '${item._type}')">
+                        ${poster ? `<img src="${poster}" alt="${title}" loading="lazy">` : `<div style="height:200px;background:#222;display:flex;align-items:center;justify-content:center;color:#666;">${typeLabel}</div>`}
+                        <div class="info">
+                            <div class="title">${title}</div>
+                            <div class="year">${year} ⭐ ${rating}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            resultsDiv.innerHTML = html;
+        }
         
-        data = query.data
+        // ===== Event Listener'lar =====
+        let searchTimeout;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            const query = searchInput.value.trim();
+            if (query.length < 2) {
+                resultsDiv.innerHTML = '<div class="no-results">🔍 En az 2 karakter girin</div>';
+                return;
+            }
+            searchTimeout = setTimeout(() => performSearch(query), 500);
+        });
         
-        if data.startswith("film_"):
-            film_id = int(data.replace("film_", ""))
-            detay = film_detay(film_id)
-            if detay:
-                await self.film_goster(query, detay)
-            else:
-                await query.edit_message_text("❌ Film detaylari alinamadi.")
+        closePlayer.addEventListener('click', closePlayerFunc);
         
-        elif data.startswith("dizi_"):
-            dizi_id = int(data.replace("dizi_", ""))
-            detay = dizi_detay(dizi_id)
-            if detay:
-                await self.dizi_goster(query, detay)
-            else:
-                await query.edit_message_text("❌ Dizi detaylari alinamadi.")
-
-    def run(self):
-        print("🎬 Film Bot baslatiliyor...")
-        print("📱 @bonus_deneme_bot")
+        // ESC ile kapat
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closePlayerFunc();
+        });
         
-        app = Application.builder().token(TOKEN).build()
+        // Enter ile arama
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const query = searchInput.value.trim();
+                if (query.length >= 2) performSearch(query);
+            }
+        });
         
-        app.add_handler(CommandHandler("start", self.start))
-        app.add_handler(CommandHandler("yardim", self.yardim))
-        app.add_handler(CommandHandler("film", self.film_ara_komut))
-        app.add_handler(CommandHandler("dizi", self.dizi_ara_komut))
-        app.add_handler(CommandHandler("populer", self.populer_filmler_komut))
-        app.add_handler(CommandHandler("populer_dizi", self.populer_diziler_komut))
-        app.add_handler(CommandHandler("rastgele", self.rastgele_film))
-        app.add_handler(CallbackQueryHandler(self.button_handler))
-        
-        print("✅ Bot calisiyor!")
-        app.run_polling(allowed_updates=Update.ALL_TYPES)
-
-if __name__ == "__main__":
-    bot = FilmBot()
-    bot.run()
+        console.log('🎬 FilmBot Mini App yüklendi!');
+    </script>
+</body>
+</html>
