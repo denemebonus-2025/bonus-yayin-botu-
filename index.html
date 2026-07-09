@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>🎬 FilmBot</title>
-    <!-- Plyr CSS -->
-    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -237,33 +235,6 @@
             opacity: 0.7;
         }
         .close-btn:active { opacity: 1; }
-        .player-selector {
-            display: flex;
-            gap: 6px;
-            padding: 10px 16px;
-            background: rgba(17,17,17,0.95);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            flex-wrap: wrap;
-            flex-shrink: 0;
-        }
-        .player-selector button {
-            padding: 6px 14px;
-            border: 2px solid rgba(255,255,255,0.08);
-            border-radius: 20px;
-            background: transparent;
-            color: #666;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .player-selector button:active { transform: scale(0.94); }
-        .player-selector button.active {
-            border-color: #e50914;
-            color: #fff;
-            background: rgba(229, 9, 20, 0.15);
-        }
 
         .player-body {
             flex: 1;
@@ -378,17 +349,11 @@
             <span class="title" id="playerTitle">Yükleniyor...</span>
             <button class="close-btn" id="closePlayer">✕</button>
         </div>
-        <div class="player-selector" id="playerSelector">
-            <button class="active" data-player="hls">HLS.js</button>
-            <button data-player="vidsrc">VidSrc</button>
-            <button data-player="2embed">2Embed</button>
-            <button data-player="multiembed">MultiEmbed</button>
-        </div>
         <div class="player-body">
             <div class="player-loading" id="playerLoading">⏳ Yükleniyor...</div>
-            <div class="player-error" id="playerError">❌ Bu player çalışmıyor, başka birini dene</div>
+            <div class="player-error" id="playerError">❌ Video yüklenemedi, lütfen tekrar dene</div>
             <div id="player-container-video"></div>
-            <div class="player-source-info" id="sourceInfo"></div>
+            <div class="player-source-info" id="sourceInfo">📡 Yükleniyor...</div>
         </div>
     </div>
 
@@ -406,14 +371,6 @@
             });
         }
 
-        function loadHLS() {
-            return loadScript('https://cdn.jsdelivr.net/npm/hls.js@latest');
-        }
-
-        function loadPlyr() {
-            return loadScript('https://cdn.plyr.io/3.7.8/plyr.js');
-        }
-
         // =====================================================
         // 2. TMDB API
         // =====================================================
@@ -422,23 +379,11 @@
         const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
         // =====================================================
-        // 3. PLAYER LİSTESİ
-        // =====================================================
-        const PLAYERS = {
-            hls: { name: 'HLS.js', url: null },
-            vidsrc: { name: 'VidSrc', url: (type, id) => `https://vidsrc.to/embed/${type}/${id}` },
-            '2embed': { name: '2Embed', url: (type, id) => `https://www.2embed.to/embed/tmdb/${type}/${id}` },
-            'multiembed': { name: 'MultiEmbed', url: (type, id) => `https://multiembed.mov/directstream.php?video_id=${id}` }
-        };
-
-        // =====================================================
-        // 4. STATE & DOM
+        // 3. STATE & DOM
         // =====================================================
         let currentMovieId = null;
         let currentType = 'movie';
         let currentTitle = '';
-        let currentPlayer = 'hls';
-        let plyrInstance = null;
         let hlsInstance = null;
 
         const searchInput = document.getElementById('searchInput');
@@ -458,12 +403,11 @@
         const closePlayer = document.getElementById('closePlayer');
         const playerLoading = document.getElementById('playerLoading');
         const playerError = document.getElementById('playerError');
-        const playerSelector = document.getElementById('playerSelector');
         const sourceInfo = document.getElementById('sourceInfo');
         const videoContainer = document.getElementById('player-container-video');
 
         // =====================================================
-        // 5. API
+        // 4. API
         // =====================================================
         async function tmdbRequest(endpoint, params = {}) {
             params.api_key = TMDB_API_KEY;
@@ -507,10 +451,11 @@
         }
 
         // =====================================================
-        // 6. m3u8 YAKALAMA
+        // 5. M3U8 BULMA (EN SAĞLAM YÖNTEM)
         // =====================================================
         async function fetchM3U8(url) {
             try {
+                // allorigins.win ile dene
                 const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
                 const res = await fetch(proxyUrl);
                 if (res.ok) {
@@ -519,37 +464,56 @@
                     if (match) return match[0];
                 }
             } catch (e) {}
+
+            try {
+                // corsproxy.io ile dene
+                const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
+                const res = await fetch(proxyUrl);
+                if (res.ok) {
+                    const html = await res.text();
+                    const match = html.match(/https?:\/\/[^"'\s]+\.m3u8[^"'\s]*/);
+                    if (match) return match[0];
+                }
+            } catch (e) {}
+
             return null;
         }
 
         async function findM3U8(type, id) {
             const sources = [
-                PLAYERS.vidsrc.url(type, id),
-                PLAYERS['2embed'].url(type, id),
-                PLAYERS['multiembed'].url(type, id)
+                `https://vidsrc.to/embed/${type}/${id}`,
+                `https://www.2embed.to/embed/tmdb/${type}/${id}`,
+                `https://multiembed.mov/directstream.php?video_id=${id}`,
+                `https://vidsrc.in/embed/${type}/${id}`,
+                `https://embed.su/embed/${type}/${id}`
             ];
+
             for (const url of sources) {
-                const m3u8 = await fetchM3U8(url);
-                if (m3u8) return m3u8;
+                try {
+                    const m3u8 = await fetchM3U8(url);
+                    if (m3u8) {
+                        console.log('🎬 m3u8 bulundu:', m3u8);
+                        return m3u8;
+                    }
+                } catch (e) {}
             }
+
+            // Hiçbir kaynakta m3u8 bulunamadı
             return null;
         }
 
         // =====================================================
-        // 7. PLAYER KONTROL
+        // 6. PLAYER KONTROL
         // =====================================================
         function showPlayerError(msg) {
             playerLoading.style.display = 'none';
             playerError.textContent = msg;
             playerError.style.display = 'block';
             videoContainer.innerHTML = '';
+            sourceInfo.textContent = '❌ Hata';
         }
 
         function destroyPlayer() {
-            if (plyrInstance) {
-                try { plyrInstance.destroy(); } catch (e) {}
-                plyrInstance = null;
-            }
             if (hlsInstance) {
                 try { hlsInstance.destroy(); } catch (e) {}
                 hlsInstance = null;
@@ -557,9 +521,9 @@
             videoContainer.innerHTML = '';
         }
 
-        function playWithHLS(m3u8Url) {
+        function playVideo(m3u8Url) {
             if (!window.Hls) {
-                showPlayerError('❌ HLS.js yüklenemedi!');
+                showPlayerError('❌ HLS.js yüklenemedi, lütfen sayfayı yenileyin');
                 return;
             }
 
@@ -568,6 +532,7 @@
             const video = document.createElement('video');
             video.setAttribute('playsinline', '');
             video.setAttribute('controls', '');
+            video.setAttribute('autoplay', '');
             videoContainer.appendChild(video);
 
             if (Hls.isSupported()) {
@@ -582,10 +547,12 @@
                 hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
                     video.play().catch(() => {});
                     playerLoading.style.display = 'none';
+                    playerError.style.display = 'none';
+                    sourceInfo.textContent = '▶️ Oynatılıyor';
                 });
                 hlsInstance.on(Hls.Events.ERROR, (event, data) => {
                     if (data.fatal) {
-                        showPlayerError('❌ Video yüklenemedi, başka player dene');
+                        showPlayerError('❌ Video yüklenemedi, lütfen tekrar dene');
                     }
                 });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -593,88 +560,50 @@
                 video.addEventListener('loadedmetadata', () => {
                     video.play().catch(() => {});
                     playerLoading.style.display = 'none';
+                    playerError.style.display = 'none';
+                    sourceInfo.textContent = '▶️ Oynatılıyor';
+                });
+                video.addEventListener('error', () => {
+                    showPlayerError('❌ Video yüklenemedi, lütfen tekrar dene');
                 });
             } else {
-                showPlayerError('❌ Tarayıcınız HLS desteklemiyor');
-                return;
-            }
-
-            // Plyr ile kaplama
-            if (window.Plyr) {
-                plyrInstance = new Plyr(video, {
-                    controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
-                    invertTime: false,
-                    disableContextMenu: true,
-                });
+                showPlayerError('❌ Tarayıcınız video oynatmayı desteklemiyor');
             }
 
             playerLoading.style.display = 'none';
-            playerError.style.display = 'none';
-            sourceInfo.textContent = '📡 HLS.js + Plyr (Reklamsız)';
+            sourceInfo.textContent = '📡 m3u8 yükleniyor...';
         }
 
-        async function loadPlayer(playerKey) {
-            currentPlayer = playerKey;
-
-            document.querySelectorAll('.player-selector button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.player === playerKey);
-            });
-
-            destroyPlayer();
-            videoContainer.innerHTML = '';
-            playerLoading.style.display = 'block';
-            playerError.style.display = 'none';
-
-            if (playerKey === 'hls') {
-                sourceInfo.textContent = '📡 HLS.js (Reklamsız) - m3u8 aranıyor...';
-                try {
-                    await Promise.all([loadHLS(), loadPlyr()]);
-                    const m3u8Url = await findM3U8(currentType, currentMovieId);
-                    if (m3u8Url) {
-                        playWithHLS(m3u8Url);
-                    } else {
-                        showPlayerError('❌ m3u8 linki bulunamadı, başka player dene');
-                    }
-                } catch (e) {
-                    console.error('HLS yükleme hatası:', e);
-                    showPlayerError('❌ HLS.js yüklenemedi, başka player dene');
-                }
-                return;
-            }
-
-            // Diğer player'lar (iframe)
-            const player = PLAYERS[playerKey];
-            if (!player || !player.url) {
-                showPlayerError('❌ Player bulunamadı!');
-                return;
-            }
-
-            const url = typeof player.url === 'function' ? player.url(currentType, currentMovieId) : player.url;
-            if (!url) {
-                showPlayerError('❌ URL alınamadı!');
-                return;
-            }
-
-            sourceInfo.textContent = `📡 ${player.name}`;
-            const iframe = document.createElement('iframe');
-            iframe.src = url;
-            iframe.style.width = '100%';
-            iframe.style.height = '100%';
-            iframe.style.border = 'none';
-            iframe.allow = 'autoplay; fullscreen; encrypted-media';
-            iframe.allowFullscreen = true;
-            videoContainer.appendChild(iframe);
-            playerLoading.style.display = 'none';
-        }
-
-        function openPlayer(type, id, title) {
+        async function openPlayer(type, id, title) {
             currentType = type;
             currentMovieId = id;
             currentTitle = title;
             playerTitle.textContent = `▶ ${title}`;
             playerContainer.classList.add('active');
             document.body.style.overflow = 'hidden';
-            loadPlayer(currentPlayer);
+
+            destroyPlayer();
+            videoContainer.innerHTML = '';
+            playerLoading.style.display = 'block';
+            playerError.style.display = 'none';
+            sourceInfo.textContent = '🔍 m3u8 aranıyor...';
+
+            try {
+                // HLS.js'i yükle
+                await loadScript('https://cdn.jsdelivr.net/npm/hls.js@latest');
+
+                // m3u8 ara
+                const m3u8Url = await findM3U8(type, id);
+
+                if (m3u8Url) {
+                    playVideo(m3u8Url);
+                } else {
+                    showPlayerError('❌ m3u8 linki bulunamadı! Lütfen başka bir film dene.');
+                }
+            } catch (e) {
+                console.error('Hata:', e);
+                showPlayerError('❌ Bir hata oluştu: ' + e.message);
+            }
         }
 
         function closePlayerFunc() {
@@ -685,7 +614,7 @@
         }
 
         // =====================================================
-        // 8. RENDER
+        // 7. RENDER
         // =====================================================
         function renderSlider(containerId, items, type) {
             const container = document.getElementById(containerId);
@@ -743,7 +672,7 @@
         }
 
         // =====================================================
-        // 9. DETAY
+        // 8. DETAY
         // =====================================================
         async function openDetail(id, type) {
             currentMovieId = id;
@@ -773,7 +702,7 @@
         }
 
         // =====================================================
-        // 10. EVENT LISTENER'LAR
+        // 9. EVENT LISTENER'LAR
         // =====================================================
         let searchTimeout;
         searchInput.addEventListener('input', () => {
@@ -823,17 +752,8 @@
         closePlayer.addEventListener('click', closePlayerFunc);
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePlayerFunc(); });
 
-        playerSelector.addEventListener('click', (e) => {
-            const btn = e.target.closest('button');
-            if (!btn) return;
-            const playerKey = btn.dataset.player;
-            if (playerKey && playerKey !== currentPlayer) {
-                loadPlayer(playerKey);
-            }
-        });
-
         // =====================================================
-        // 11. BAŞLAT
+        // 10. BAŞLAT
         // =====================================================
         async function init() {
             try {
