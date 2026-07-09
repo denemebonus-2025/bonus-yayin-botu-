@@ -380,32 +380,49 @@
 
     <script>
         // =====================================================
-        // 1. ZWPlayer Yükleme
+        // 1. ZWPlayer Yükleme (CDN + Yedek)
         // =====================================================
         function loadZWPlayerScript() {
             return new Promise((resolve, reject) => {
-                // Zaten yüklü mü?
                 if (window.ZWPlayer) {
                     resolve();
                     return;
                 }
                 const script = document.createElement('script');
                 script.src = 'https://cdn.zwplayer.cn/v3/zwplayer/zwplayer.js';
+                script.crossOrigin = 'anonymous';
                 script.onload = () => {
-                    // Bazen yüklense bile global'e gelmeyebiliyor
+                    // ZWPlayer'ın global'e geldiğinden emin ol
                     const check = setInterval(() => {
                         if (window.ZWPlayer) {
                             clearInterval(check);
                             resolve();
                         }
-                    }, 200);
-                    // 5 saniye sonra timeout
+                    }, 100);
                     setTimeout(() => {
                         clearInterval(check);
                         reject(new Error('ZWPlayer timeout'));
                     }, 5000);
                 };
-                script.onerror = reject;
+                script.onerror = () => {
+                    // Yedek CDN
+                    const backupScript = document.createElement('script');
+                    backupScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/zwplayer/3.0.0/zwplayer.min.js';
+                    backupScript.onload = () => {
+                        const check = setInterval(() => {
+                            if (window.ZWPlayer) {
+                                clearInterval(check);
+                                resolve();
+                            }
+                        }, 100);
+                        setTimeout(() => {
+                            clearInterval(check);
+                            reject(new Error('ZWPlayer yedek CDN de çalışmadı'));
+                        }, 5000);
+                    };
+                    backupScript.onerror = reject;
+                    document.head.appendChild(backupScript);
+                };
                 document.head.appendChild(script);
             });
         }
@@ -421,22 +438,10 @@
         // 3. PLAYER LİSTESİ
         // =====================================================
         const PLAYERS = {
-            zwplayer: {
-                name: 'ZWPlayer (Reklamsız)',
-                url: null
-            },
-            vidsrc: {
-                name: 'VidSrc',
-                url: (type, id) => `https://vidsrc.to/embed/${type}/${id}`
-            },
-            '2embed': {
-                name: '2Embed',
-                url: (type, id) => `https://www.2embed.to/embed/tmdb/${type}/${id}`
-            },
-            'multiembed': {
-                name: 'MultiEmbed',
-                url: (type, id) => `https://multiembed.mov/directstream.php?video_id=${id}`
-            }
+            zwplayer: { name: 'ZWPlayer (Reklamsız)', url: null },
+            vidsrc: { name: 'VidSrc', url: (type, id) => `https://vidsrc.to/embed/${type}/${id}` },
+            '2embed': { name: '2Embed', url: (type, id) => `https://www.2embed.to/embed/tmdb/${type}/${id}` },
+            'multiembed': { name: 'MultiEmbed', url: (type, id) => `https://multiembed.mov/directstream.php?video_id=${id}` }
         };
 
         // =====================================================
@@ -470,7 +475,7 @@
         const zwContainer = document.getElementById('zwplayer-container');
 
         // =====================================================
-        // 5. API FONKSİYONLARI
+        // 5. API
         // =====================================================
         async function tmdbRequest(endpoint, params = {}) {
             params.api_key = TMDB_API_KEY;
@@ -514,7 +519,7 @@
         }
 
         // =====================================================
-        // 6. m3u8 YAKALAMA (ÇOKLU YÖNTEM)
+        // 6. m3u8 YAKALAMA (En Sağlam Yöntem)
         // =====================================================
         async function fetchM3U8(url) {
             // Yöntem 1: allorigins.win
@@ -657,7 +662,7 @@
                 return;
             }
 
-            // Diğer player'lar
+            // Diğer player'lar (sadece ZWPlayer çalışmazsa)
             const player = PLAYERS[playerKey];
             if (!player || !player.url) {
                 showPlayerError('❌ Player bulunamadı!');
